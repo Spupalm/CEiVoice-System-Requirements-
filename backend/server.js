@@ -1,25 +1,33 @@
-import express from "express";
-import { generateSupportTicket } from "./services/aiService.js";
-// Simple Express server to handle AI ticket drafting requests
+// server.js
+
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+
 const app = express();
-app.use(express.json());
+const port = 5003;
 
-app.post("/api/ai/draft-ticket", async (req, res) => {
-  const { message } = req.body;
+// Middleware setup
+app.use(cors()); // Allow cross-origin requests from React frontend
+app.use(express.json()); // Enable reading JSON data from request body
 
-  if (!message) {
-    return res.status(400).json({ error: "message is required" });
-  }
-
-  try {
-    const result = await generateSupportTicket(message);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "AI failed" });
-  }
+// --- MySQL Connection Setup ---
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root', // CHANGE THIS to your MySQL username
+    password: 'CEiAdmin0', // CHANGE THIS to your MySQL password
+    database: 'ceidb' // Ensure this matches your database name
 });
+
+db.connect(err => {
+    if (err) {
+        console.error('Error connecting to MySQL:', err);
+        return;
+    }
+    console.log('Connected to MySQL Database.');
+});
+
 // Start the server
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
 });
-

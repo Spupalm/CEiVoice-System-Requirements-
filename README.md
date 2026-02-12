@@ -49,3 +49,24 @@ By automating categorization and assignment, CEiVoice enables administrators and
 * **Reporting & Analytics**: Built-in reporting tools analyze support performance, identify trends, and help improve future response efficiency.
 
 
+# Setup
+```
+cd database
+docker-compose -f db-compose-dev.yml up
+cd backend
+node setup.js
+```
+
+new terminal:
+```
+cd frontend
+npm install
+npm run dev
+```
+
+new terminal:
+```
+cd backend
+npm install
+node server.js
+```
