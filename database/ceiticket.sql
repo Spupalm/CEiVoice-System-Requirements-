@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql_db
--- Generation Time: Feb 11, 2026 at 08:41 AM
+-- Generation Time: Feb 14, 2026 at 11:23 AM
 -- Server version: 8.0.44
 -- PHP Version: 8.3.26
 
@@ -20,6 +20,31 @@ SET time_zone = "+00:00";
 --
 -- Database: `ceidb`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `categories`
+--
+
+CREATE TABLE `categories` (
+  `id` int NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `categories`
+--
+
+INSERT INTO `categories` (`id`, `name`, `description`, `created_at`) VALUES
+(1, 'IT Support', 'Technical issues related to system, login, server, or software', '2026-02-12 17:42:22'),
+(2, 'Teach Support', 'Issues related to classroom systems, LMS, or teaching tools', '2026-02-12 17:42:22'),
+(3, 'Network Team', 'Internet, Wi-Fi, and network related problems', '2026-02-12 17:42:22'),
+(4, 'Account & Access Team', 'Password reset, account lock, permission issues', '2026-02-12 17:42:22'),
+(5, 'Finance & Billing team', 'Payment, invoice, and financial related requests', '2026-02-12 17:42:22'),
+(6, 'HR Team', 'Human resource and administrative concerns', '2026-02-12 17:42:22');
 
 -- --------------------------------------------------------
 
@@ -47,13 +72,6 @@ CREATE TABLE `draft_request_mapping` (
   `request_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `draft_request_mapping`
---
-
-INSERT INTO `draft_request_mapping` (`draft_id`, `request_id`) VALUES
-(2, 2);
-
 -- --------------------------------------------------------
 
 --
@@ -66,6 +84,7 @@ CREATE TABLE `draft_tickets` (
   `category` varchar(100) DEFAULT NULL,
   `summary` text,
   `resolution_path` text,
+  `suggested_assignees` int DEFAULT NULL,
   `assigned_to` int DEFAULT NULL,
   `deadline` datetime DEFAULT NULL,
   `status` enum('Draft','Submitted','Merged') DEFAULT 'Draft',
@@ -79,10 +98,6 @@ CREATE TABLE `draft_tickets` (
 -- Dumping data for table `draft_tickets`
 --
 
-INSERT INTO `draft_tickets` (`id`, `title`, `category`, `summary`, `resolution_path`, `assigned_to`, `deadline`, `status`, `ai_suggested_merge_id`, `created_by_ai`, `created_at`, `updated_at`) VALUES
-(1, 'Draft: dwdwdw...', 'General Inquiry', 'User Request Details: dwdwdw', NULL, NULL, NULL, 'Draft', NULL, 1, '2026-02-10 14:23:44', '2026-02-10 14:23:44'),
-(2, 'Draft: test request01...', 'General Inquiry', 'User Request Details: test request01', NULL, NULL, NULL, 'Draft', NULL, 1, '2026-02-10 14:24:43', '2026-02-10 14:24:43'),
-(3, 'Draft: request test 2 user_id...', 'General Inquiry', 'User Request Details: request test 2 user_id', NULL, NULL, NULL, 'Draft', NULL, 1, '2026-02-10 15:01:43', '2026-02-10 15:01:43');
 
 -- --------------------------------------------------------
 
@@ -145,25 +160,25 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  `role` enum('user','assignee','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'user',
-  `skills` text
+  `role` enum('user','assignee','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `username`, `password`, `profile_image`, `created_at`, `role`, `skills`) VALUES
-(5, 'Watcharathorn Krachangmon', 'watchie', '$2b$10$1M57XIJGo/yKlL1wA86a1OidTNYZ138g6bASKg9bNCvwFy2LtCRi2', '6287e8e1475892c60a8fb3fd28173102', '2026-01-29 17:06:56', 'admin', NULL),
-(11, 'Watcharathorn Krachangmon (1380)', '67011380@kmitl.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIXG3634ZtSeg1dUsJUZ1CKb8UyC6Z9qrCQ5AT_N8g9SZiCPQ=s96-c', '2026-01-31 10:29:57', 'user', NULL),
-(12, 'watcharathorn krachangmon', 'watcharathorn2549@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocL3hyurCaMfLDwPHAf-01qiMpRsZl63__qtY1Ueol-Ci3Y31mg=s96-c', '2026-01-31 10:30:05', 'user', NULL),
-(14, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-01-31 13:50:09', 'user', NULL),
-(16, 'Kittisak Chalongkulwat', 'kenmuay', '$2b$10$q/tXFg2pIWDT9zAINGYV5OX8p50QBwhKowg/d1Esr5WMH9.V26fzi', 'd609d557c1a0a62e8f020a8c0ecace86', '2026-01-31 15:00:35', 'user', NULL),
-(17, 'Rick Astley', 'rickroll', '$2b$10$3zF/J19dONmjAY6CwMs.zONZR/4ePuA4SO.nf0DdvQ1BXuJn5VxXC', 'dd4eaa7dbbae294ecd86166bcf294c97', '2026-02-02 15:44:33', 'user', NULL),
-(18, 'Tworockpuzzle', 'tworock', '$2b$10$kolJT7anlg06DOzxb9mYqe5mR13IQJAChdlpLiqXczhbhWw5rxES2', '96021c4ad9076047ea8f657ac066d432', '2026-02-04 09:29:23', 'user', NULL),
-(20, 'ควยชิบหาย', 'ควย', '$2b$10$/yPInfm0cQ6jCi2/mG2xBeRlXFNpfGJbT5ckcYckdsYw5hzkqHXaq', '4894750d14c0b613eea2614c46e59ce3', '2026-02-08 19:24:55', 'user', NULL),
-(22, 'Worawalun', 'palmy', '$2b$10$bl9xEvO30D.jMY.f/MrgG.fl6l0dMQNCYEEe6HyTmPgS3j3Ube.N6', '56d572a59eb430a0afdeaefbac27a538', '2026-02-09 11:50:20', 'assignee', 'Graphic Design'),
-(23, 'adminTest', 'admin1', '$2b$10$o20HDVcoHs8F2mE7wUs8dOG97pLJfS95dIvX.cB/9n0G9HFhBlyGK', 'bf0be8f4468b607dd83f2e01a49326d2', '2026-02-09 13:22:13', 'admin', NULL);
+INSERT INTO `users` (`id`, `full_name`, `username`, `password`, `profile_image`, `created_at`, `role`) VALUES
+(5, 'Watcharathorn Krachangmon', 'watchie', '$2b$10$1M57XIJGo/yKlL1wA86a1OidTNYZ138g6bASKg9bNCvwFy2LtCRi2', '6287e8e1475892c60a8fb3fd28173102', '2026-01-29 17:06:56', 'admin'),
+(11, 'Watcharathorn Krachangmon (1380)', '67011380@kmitl.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIXG3634ZtSeg1dUsJUZ1CKb8UyC6Z9qrCQ5AT_N8g9SZiCPQ=s96-c', '2026-01-31 10:29:57', 'user'),
+(12, 'watcharathorn krachangmon', 'watcharathorn2549@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocL3hyurCaMfLDwPHAf-01qiMpRsZl63__qtY1Ueol-Ci3Y31mg=s96-c', '2026-01-31 10:30:05', 'user'),
+(14, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-01-31 13:50:09', 'user'),
+(16, 'Kittisak Chalongkulwat', 'kenmuay', '$2b$10$q/tXFg2pIWDT9zAINGYV5OX8p50QBwhKowg/d1Esr5WMH9.V26fzi', 'd609d557c1a0a62e8f020a8c0ecace86', '2026-01-31 15:00:35', 'user'),
+(17, 'Rick Astley', 'rickroll', '$2b$10$3zF/J19dONmjAY6CwMs.zONZR/4ePuA4SO.nf0DdvQ1BXuJn5VxXC', 'dd4eaa7dbbae294ecd86166bcf294c97', '2026-02-02 15:44:33', 'user'),
+(18, 'Tworockpuzzle', 'tworock', '$2b$10$kolJT7anlg06DOzxb9mYqe5mR13IQJAChdlpLiqXczhbhWw5rxES2', '96021c4ad9076047ea8f657ac066d432', '2026-02-04 09:29:23', 'user'),
+(20, 'ควยชิบหาย', 'ควย', '$2b$10$/yPInfm0cQ6jCi2/mG2xBeRlXFNpfGJbT5ckcYckdsYw5hzkqHXaq', '4894750d14c0b613eea2614c46e59ce3', '2026-02-08 19:24:55', 'user'),
+(22, 'Worawalun', 'palmy', '$2b$10$bl9xEvO30D.jMY.f/MrgG.fl6l0dMQNCYEEe6HyTmPgS3j3Ube.N6', '56d572a59eb430a0afdeaefbac27a538', '2026-02-09 11:50:20', 'assignee'),
+(23, 'adminTest', 'admin1', '$2b$10$o20HDVcoHs8F2mE7wUs8dOG97pLJfS95dIvX.cB/9n0G9HFhBlyGK', 'bf0be8f4468b607dd83f2e01a49326d2', '2026-02-09 13:22:13', 'admin'),
+(24, 'assigneeTest(network)', 'network', '$2b$10$Jb04hp6F6pq8anRjHsLMYuHi/Te7E3npMVYmnBw.ujlQx.8YfXSy.', '1771062429427-220163703-140511293_p0_master1200.jpg', '2026-02-14 09:47:09', 'assignee');
 
 -- --------------------------------------------------------
 
@@ -186,12 +201,38 @@ CREATE TABLE `user_requests` (
 --
 
 INSERT INTO `user_requests` (`id`, `user_id`, `user_email`, `message`, `created_at`, `status`, `draft_ticket_id`) VALUES
-(2, NULL, 'rickroll', 'test request01', '2026-02-10 14:24:43', 'draft', 2),
-(4, 17, 'rickroll', 'test userid', '2026-02-10 15:08:05', 'received', NULL);
+(8, 16, 'kenmuay', 'Cannot Log In to Account', '2026-02-12 18:11:53', 'draft', 5),
+(9, 17, 'rickroll', 'can\'t connect to kmitl network', '2026-02-14 11:18:39', 'draft', NULL),
+(10, 17, 'rickroll', 'can\'t use kmitl neetwork', '2026-02-14 11:20:35', 'draft', 7);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_skills`
+--
+
+CREATE TABLE `user_skills` (
+  `user_id` int NOT NULL,
+  `category_id` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `user_skills`
+--
+
+INSERT INTO `user_skills` (`user_id`, `category_id`) VALUES
+(24, 3);
 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `categories`
+--
+ALTER TABLE `categories`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `name` (`name`);
 
 --
 -- Indexes for table `comments`
@@ -213,7 +254,8 @@ ALTER TABLE `draft_request_mapping`
 --
 ALTER TABLE `draft_tickets`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `assigned_to` (`assigned_to`);
+  ADD KEY `assigned_to` (`assigned_to`),
+  ADD KEY `fk_suggested_category` (`suggested_assignees`);
 
 --
 -- Indexes for table `task_assignments`
@@ -255,8 +297,21 @@ ALTER TABLE `user_requests`
   ADD KEY `fk_user_request_user` (`user_id`);
 
 --
+-- Indexes for table `user_skills`
+--
+ALTER TABLE `user_skills`
+  ADD PRIMARY KEY (`user_id`,`category_id`),
+  ADD KEY `category_id` (`category_id`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `categories`
+--
+ALTER TABLE `categories`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `comments`
@@ -268,7 +323,7 @@ ALTER TABLE `comments`
 -- AUTO_INCREMENT for table `draft_tickets`
 --
 ALTER TABLE `draft_tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `task_assignments`
@@ -292,13 +347,13 @@ ALTER TABLE `ticket_history`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `user_requests`
 --
 ALTER TABLE `user_requests`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Constraints for dumped tables
@@ -322,7 +377,8 @@ ALTER TABLE `draft_request_mapping`
 -- Constraints for table `draft_tickets`
 --
 ALTER TABLE `draft_tickets`
-  ADD CONSTRAINT `draft_tickets_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`);
+  ADD CONSTRAINT `draft_tickets_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_suggested_category` FOREIGN KEY (`suggested_assignees`) REFERENCES `categories` (`id`);
 
 --
 -- Constraints for table `task_assignments`
@@ -350,6 +406,13 @@ ALTER TABLE `ticket_history`
 ALTER TABLE `user_requests`
   ADD CONSTRAINT `fk_user_request_draft` FOREIGN KEY (`draft_ticket_id`) REFERENCES `draft_tickets` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_user_request_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Constraints for table `user_skills`
+--
+ALTER TABLE `user_skills`
+  ADD CONSTRAINT `user_skills_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_skills_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
