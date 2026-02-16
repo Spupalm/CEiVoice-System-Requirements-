@@ -51,17 +51,34 @@ By automating categorization and assignment, CEiVoice enables administrators and
 
 # Setup
 ```
+create .env file in backend and frontend(.env file)
+```
+Must install these:
+- react ver 18.3.1
+install in backend:
+- npm install dotenv
+- npm install multer
+- npm install bcrypt
+- npm install axios
+- npm install google-auth-library
+install in frontend:
+- npm install @react-oauth/google
+- npm install react-google-recaptcha
+- npm install react-icons/fi
+- npm install jwt-decode
+```
 cd database
 docker-compose -f db-compose-dev.yml up
 cd backend
-node setup.js
+node server.js
 ```
 
 new terminal:
 ```
 cd frontend
 npm install
-npm run dev
+npm run dev or
+npm start
 ```
 
 new terminal:
