@@ -331,7 +331,7 @@ app.post('/api/user-requests', (req, res) => {
                 });
                 // 2. ส่ง message และ รายชื่อพนักงานไปให้ AI (อย่าลืมแก้ generateSupportTicket ให้รับ parameter เพิ่ม)
                 const ticket = await generateSupportTicket(message, assigneesList, existingDrafts);
-                console.log(assigneesList);
+                //console.log(assigneesList);
                 console.log("AI Suggested Ticket:", ticket);
                 // 3. หา ID ของคนที่ AI เลือกมา (เปรียบเทียบจากชื่อที่ AI คืนกลับมาใน ticket.assignee_category_id)
                 const suggestedAssigneeId = ticket.assignee_category_id[0];
@@ -397,6 +397,7 @@ app.get('/api/admin/draft-tickets', (req, res) => {
             dt.summary,
             dt.resolution_path,
             dt.status,
+            dt.ai_suggested_merge_id,
             dt.created_at,
             dt.assigned_to,
             dt.deadline,
@@ -461,6 +462,7 @@ app.get('/api/admin/user-requests', (req, res) => {
     const sql = "SELECT * FROM user_requests ORDER BY created_at DESC";
     db.query(sql, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
+
         res.json(results);
     });
 });
@@ -565,18 +567,214 @@ app.put('/api/admin/users/:id', async (req, res) => {
     const { full_name, role, skills } = req.body;
 
     try {
+        // ใช้ db.promise().query() โดยตรงเหมือนที่จุดอื่นในโปรเจกต์คุณใช้ได้สำเร็จ
+        // 1. อัปเดตข้อมูลพื้นฐาน
+        await db.promise().query('UPDATE users SET full_name = ?, role = ? WHERE id = ?', [full_name, role, userId]);
 
-        await db.query('UPDATE users SET full_name = ?, role = ? WHERE id = ?', [full_name, role, userId]);
+        // 2. ลบ Skill เดิมออก
+        await db.promise().query('DELETE FROM user_skills WHERE user_id = ?', [userId]);
 
-        await db.query('DELETE FROM user_skills WHERE user_id = ?', [userId]);
+        // 3. บันทึก Skills ใหม่ (กรณีส่งมาเป็น [4, 5, 6, 2])
+        if (skills && Array.isArray(skills) && skills.length > 0) {
+            // เตรียมข้อมูลเป็น Array ของ Array: [[userId, skillId1], [userId, skillId2]]
+            const skillValues = skills.map(catId => [parseInt(userId), parseInt(catId)]);
 
-        if (skills && skills.length > 0) {
-            const skillValues = skills.map(catId => [userId, catId]);
-            await db.query('INSERT INTO user_skills (user_id, category_id) VALUES ?', [skillValues]);
+            // ส่ง [skillValues] ครอบอีกชั้นเพื่อให้ตรงกับรูปแบบ Bulk Insert ของ mysql2
+            await db.promise().query('INSERT INTO user_skills (user_id, category_id) VALUES ?', [skillValues]);
         }
 
         res.json({ message: 'Updated successfully' });
     } catch (err) {
+        console.error("Database Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/users/:userId/tickets', (req, res) => {
+    const { userId } = req.params;
+
+    // We join user_requests -> draft_tickets -> tickets
+    // This follows the request's journey through your database
+    const sql = `
+        SELECT 
+            ur.id AS request_id, 
+            ur.message AS original_message, 
+            ur.status AS request_status, 
+            ur.created_at,
+            dt.title AS ai_title,
+            t.status AS official_status,
+            t.ticket_no
+        FROM user_requests ur
+        LEFT JOIN draft_tickets dt ON ur.draft_ticket_id = dt.id
+        LEFT JOIN tickets t ON (t.title = dt.title AND ur.status = 'ticket')
+        WHERE ur.user_id = ?
+        ORDER BY ur.created_at DESC
+    `;
+
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            console.error("Database Error:", err);
+            return res.status(500).json({ error: "Failed to fetch history" });
+        }
+        res.json(results);
+    });
+});
+
+// 2. ดึงข้อมูลจากตาราง draft_tickets (งานที่ผ่าน AI วิเคราะห์แล้ว)
+app.get('/api/admin/draft-tickets', (req, res) => {
+    const sql = `
+        SELECT dt.*, u.full_name as suggested_assignee_name 
+        FROM draft_tickets dt
+        LEFT JOIN users u ON dt.assigned_to = u.id
+        ORDER BY dt.created_at DESC`;
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+app.post('/api/admin/merge-tickets', async (req, res) => {
+    const { ticketIds } = req.body; // รับ Array ของ ID เช่น [30, 31, 35]
+
+    if (!ticketIds || ticketIds.length < 2) {
+        return res.status(400).json({ message: "Select at least 2 tickets to merge" });
+    }
+
+    // กำหนดตัวแรกเป็น Draft หลัก
+    const mainDraftId = ticketIds[0];
+    const otherDraftIds = ticketIds.slice(1);
+
+    try {
+        // 1. ย้าย request_id จาก draft อื่นๆ มาผูกกับ draft หลัก
+        const updateMappingSql = `
+            UPDATE draft_request_mapping 
+            SET draft_id = ? 
+            WHERE draft_id IN (?)
+        `;
+
+        // 2. ลบ draft tickets ที่เหลือทิ้ง
+        const deleteDraftsSql = `
+            DELETE FROM draft_tickets 
+            WHERE id IN (?)
+        `;
+
+        // ใช้ Transaction เพื่อความปลอดภัย (ต้องสำเร็จทั้งหมด หรือไม่สำเร็จเลย)
+        await db.promise().query('START TRANSACTION');
+
+        await db.promise().query(updateMappingSql, [mainDraftId, otherDraftIds]);
+        await db.promise().query(deleteDraftsSql, [otherDraftIds]);
+
+        await db.promise().query('COMMIT');
+
+        res.json({ message: "Merge successful! All requests moved to Ticket #" + mainDraftId });
+    } catch (err) {
+        await db.promise().query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. ดึงข้อมูลจากตาราง tickets (งานที่เป็นทางการ)
+app.get('/api/admin/official-tickets', (req, res) => {
+    const sql = `
+        SELECT t.*, u.full_name as assignee_name 
+        FROM tickets t
+        LEFT JOIN users u ON t.assignee_id = u.id
+        ORDER BY t.created_at DESC`;
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+app.post('/api/admin/approve-ticket', (req, res) => {
+    const { draft_id, title, category, summary, resolution_path, assignee_id, deadline } = req.body;
+
+    // แปลง ISO Date String เป็น MySQL Format (YYYY-MM-DD HH:MM:SS)
+    const formattedDeadline = deadline ? deadline.replace('T', ' ').replace(/\..*$/, '') : null;
+
+    const ticketNo = `TK-${Date.now()}`;
+
+    const sqlInsertTicket = `
+        INSERT INTO tickets (ticket_no, title, category, summary, resolution_path, status, assignee_id, deadline) 
+        VALUES (?, ?, ?, ?, ?, 'New', ?, ?)`;
+
+    db.query(sqlInsertTicket, [
+        ticketNo,
+        title,
+        category,
+        summary,
+        JSON.stringify(resolution_path),
+        assignee_id,
+        formattedDeadline // ใช้ตัวแปรที่แปลงฟอร์แมตแล้ว
+    ], (err, result) => {
+        if (err) {
+            console.error("Database Error:", err);
+            return res.status(500).json({ error: err.sqlMessage });
+        }
+
+        // 3. อัปเดตสถานะใน draft_tickets เป็น 'Submitted' เพื่อให้หายไปจากหน้าตาราง Draft
+        const sqlUpdateDraft = "UPDATE draft_tickets SET status = 'Submitted' WHERE id = ?";
+        db.query(sqlUpdateDraft, [draft_id], (updateErr) => {
+            if (updateErr) console.error("Update Draft Error:", updateErr);
+
+            // 4. อัปเดตสถานะใน user_requests เป็น 'ticket' เพื่อแจ้งผู้ใช้ว่ารับเรื่องแล้ว
+            db.query("UPDATE user_requests SET status = 'ticket' WHERE draft_ticket_id = ?", [draft_id]);
+
+            res.json({
+                success: true,
+                message: "Ticket approved successfully",
+                ticket_no: ticketNo
+            });
+        });
+    });
+});
+
+app.get('/api/admin/users', (req, res) => {
+    const sql = `
+        SELECT 
+            u.id, 
+            u.full_name, 
+            u.username, 
+            u.role, 
+            u.profile_image,
+            GROUP_CONCAT(c.id) AS skill_ids,
+            GROUP_CONCAT(c.name SEPARATOR ', ') AS skill_names
+        FROM users u
+        LEFT JOIN user_skills us ON u.id = us.user_id
+        LEFT JOIN categories c ON us.category_id = c.id
+        GROUP BY u.id`;
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error("Database Error:", err.message);
+            return res.status(500).json({ error: "Failed to fetch users" });
+        }
+        res.json(results);
+    });
+});
+
+app.put('/api/admin/users/:id', async (req, res) => {
+    console.log("Update User Request Body:", req.body);
+    const userId = req.params.id;
+    const { full_name, role, skills } = req.body;
+
+    try {
+        const connection = db.promise(); // ถ้าใช้วิธีที่ 2
+
+        await connection.query('UPDATE users SET full_name = ?, role = ? WHERE id = ?', [full_name, role, userId]);
+        await connection.query('DELETE FROM user_skills WHERE user_id = ?', [userId]);
+
+        if (skills && Array.isArray(skills) && skills.length > 0) {
+            // ต้องเป็น [[u, s1], [u, s2]]
+            const skillValues = skills.map(catId => [parseInt(userId), parseInt(catId)]);
+
+            // ใส่ [skillValues] เสมอ
+            await connection.query('INSERT INTO user_skills (user_id, category_id) VALUES ?', [skillValues]);
+        }
+
+        res.json({ message: 'Updated successfully' });
+    } catch (err) {
+        console.error("Database Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
