@@ -148,6 +148,14 @@ return (
             
             .text-orange { color: #e67e22 !important; }
             .resolution-tag { color: #198754; font-weight: bold; }
+            .border-overdue { 
+    border: 2px solid #dc3545 !important; 
+    background-color: #fff5f5 !important; 
+}
+.text-overdue { 
+    color: #dc3545 !important; 
+    font-weight: bold; 
+}
         `}</style>
 
 
@@ -156,34 +164,56 @@ return (
                 <span className="badge bg-primary ms-3 fs-5 rounded-pill px-3">{totalWorkload}</span>
             </div>
 
-            {['New', 'Assigned', 'Solving', 'Solved', 'Failed'].map(group => {
-                const groupTasks = tasks.filter(t => t.status.toLowerCase() === group.toLowerCase());
+{['New', 'Assigned', 'Solving', 'Solved', 'Failed'].map(group => {
+    const groupTasks = tasks.filter(t => t.status.toLowerCase() === group.toLowerCase());
+    return (
+        <div key={group} className="mb-4">
+            <div className={`p-3 rounded-4 d-flex justify-content-between align-items-center ${
+                group === 'New' ? 'custom-bg-new text-indigo-dark' : 
+                group === 'Assigned' ? 'bg-primary text-white' : 
+                group === 'Solving' ? 'bg-warning text-dark' : 
+                group === 'Solved' ? 'bg-success text-white' : 
+                group === 'Failed' ? 'bg-danger text-white' : 'bg-light'
+            }`}>
+                <span className="fw-bold">{group}</span>
+                <span className="badge bg-white text-dark shadow-sm">{groupTasks.length}</span>
+            </div>
+            
+            {groupTasks.map(task => {
+                // Logic: Past deadline AND status is not 'Solved' or 'Failed'
+                const isOverdue = new Date(task.deadline) < new Date() && 
+                                  !['solved', 'failed'].includes(task.status.toLowerCase());
+
                 return (
-                    <div key={group} className="mb-4">
-                        <div className={`p-3 rounded-4 d-flex justify-content-between align-items-center ${
-                            group === 'New' ? 'custom-bg-new text-indigo-dark' : 
-                            group === 'Assigned' ? 'bg-primary text-white' : 
-                            group === 'Solving' ? 'bg-warning text-dark' : 
-                            group === 'Solved' ? 'bg-success text-white' : 
-                            group === 'Failed' ? 'bg-danger text-white' : 'bg-light'
-                        }`}>
-                            <span className="fw-bold">{group}</span>
-                            <span className="badge bg-white text-dark shadow-sm">{groupTasks.length}</span>
-                        </div>
-                        {groupTasks.map(task => (
-                            <div key={task.id} className="ms-3 p-3 bg-white border rounded-3 mt-2 shadow-sm d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div className="fw-bold">{task.title}</div>
-                                    <small className="text-muted">
-                                        Deadline: {new Date(task.deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                    </small>
-                                </div>
-                                <button className="btn btn-sm btn-outline-primary" onClick={() => handleOpenDetails(task)}>View</button>
+                    <div 
+                        key={task.id} 
+                        className={`ms-3 p-3 border rounded-3 mt-2 shadow-sm d-flex justify-content-between align-items-center ${
+                            isOverdue ? 'border-overdue' : 'bg-white'
+                        }`}
+                    >
+                        <div>
+                            <div className="fw-bold">
+                                {task.title}
+                                {isOverdue && <span className="badge bg-danger ms-2">OVERDUE</span>}
                             </div>
-                        ))}
+                            <small className={isOverdue ? "text-overdue" : "text-muted"}>
+                                Deadline: {new Date(task.deadline).toLocaleString('en-GB', { 
+                                    day: '2-digit', 
+                                    month: 'short', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                })}
+                            </small>
+                        </div>
+                        <button className="btn btn-sm btn-outline-primary" onClick={() => handleOpenDetails(task)}>
+                            View
+                        </button>
                     </div>
                 );
             })}
+        </div>
+    );
+})}
 
             <div className="modal fade" id="detailsModal" tabIndex="-1">
                 <div className="modal-dialog modal-xl">
