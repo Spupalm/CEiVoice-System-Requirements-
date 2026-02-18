@@ -130,16 +130,26 @@ const getNameFromId = (id) => {
         }
     };
 
-    return (
-        <div className="container mt-4 pb-5">
-            <style>{`
-                .custom-bg-new { background-color: #e0e7ff !important; }
-                .text-indigo-dark { color: #4338ca !important; }
-                .comment-internal { background-color: #fff4e5 !important; border-left: 5px solid #ff9800 !important; }
-                .comment-public { background-color: #f8f9fa !important; border-left: 5px solid #0d6efd !important; }
-                .text-orange { color: #e67e22 !important; }
-                .resolution-tag { color: #198754; font-weight: bold; }
-            `}</style>
+return (
+    <div className="container mt-4 pb-5">
+        <style>{`
+            .custom-bg-new { background-color: #e0e7ff !important; }
+            .text-indigo-dark { color: #4338ca !important; }
+            
+            /* --- Internal vs Public Comment Styles --- */
+            .comment-internal { 
+                background-color: #fff4e5 !important; 
+                border-left: 5px solid #ff9800 !important; 
+            }
+            .comment-public { 
+                background-color: #f8f9fa !important; 
+                border-left: 5px solid #0d6efd !important; 
+            }
+            
+            .text-orange { color: #e67e22 !important; }
+            .resolution-tag { color: #198754; font-weight: bold; }
+        `}</style>
+
 
             <div className="d-flex align-items-center mb-4">
                 <h3 className="fw-bold text-primary mb-0">📂 Current Workload</h3>
@@ -254,7 +264,8 @@ const getNameFromId = (id) => {
                                     <h6 className="fw-bold mb-3">💬 Communications</h6>
                                     <div className="overflow-auto mb-3 pe-2" style={{ height: '350px' }}>
                                         {comments.map(c => (
-                                            <div key={c.id} className={`p-3 mb-3 rounded-3 shadow-sm ${c.comment_type === 'internal' ? 'comment-internal' : 'comment-public'}`}>
+                                            <div key={c.id} className={`p-3 mb-3 rounded-3 shadow-sm ${String(c.comment_type).toLowerCase() === 'internal' ? 'comment-internal' : 'comment-public'}`}>
+                                                {String(c.comment_type).toLowerCase() === 'internal' && <span className="text-orange">🔒 INTERNAL NOTE</span>}
                                                 <div className="d-flex justify-content-between small fw-bold mb-1">
                                                     <span>{c.full_name || c.username}</span>
                                                     {c.comment_type === 'internal' && <span className="text-orange">🔒 INTERNAL NOTE</span>}
