@@ -18,7 +18,7 @@ export async function callAI(prompt) {
   return result.response.text();
 }
 // Generate a draft support ticket based on user message
-export async function generateSupportTicket(userMessage, availableAssignees) {
+export async function generateSupportTicket(userMessage, availableAssignees, existingDrafts) {
   const prompt = `
 You are an AI that creates draft support tickets.
 
@@ -32,10 +32,11 @@ Task:
 - Provide a suggested solution as an array of steps.
 - **assignee_category_id**: Identify the ID(s) from the Categories list that best match the nature of the issue.
 - **assigned_to_id**: Select the best worker ID from the Available Assignees list based on their expertise.
+- **Check for Duplicates**: If the User message is similar or related to an issue in the "Existing Drafts" more than 75%, set "match_draft_id" to that ticket's ID.
 List of available workers and their expertise categories:
 
 ${JSON.stringify(availableAssignees)}
-
+${JSON.stringify(existingDrafts)}
 Return JSON:
 {
   "title": "...",
@@ -43,7 +44,8 @@ Return JSON:
   "summary": "...",
   "suggestedSolution": [],
   "assignee_category_id": [],
-  "assigned_to_id": null
+  "assigned_to_id": null,
+  "match_draft_id": null or number,
 }
 `;
 
