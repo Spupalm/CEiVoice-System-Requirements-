@@ -85,21 +85,38 @@ useEffect(() => {
                 <span className="badge bg-primary ms-3 fs-5 rounded-pill px-3">{totalWorkload}</span>
             </div>
 
-            {/* Render Groups (same as before) */}
-            {['New', 'Assigned', 'Solving'].map(status => (
-                <div key={status} className="mb-4">
-                    <div className={`p-3 rounded-4 d-flex justify-content-between align-items-center ${status === 'New' ? 'custom-bg-new text-indigo-dark' : 'bg-light'}`}>
-                        <span className="fw-bold">{status}</span>
-                        <span className="badge bg-white text-dark shadow-sm">{tasks.filter(t => t.status === status).length}</span>
-                    </div>
-                    {tasks.filter(t => t.status === status).map(task => (
-                        <div key={task.id} className="ms-3 p-3 bg-white border rounded-3 mt-2 shadow-sm d-flex justify-content-between align-items-center">
-                            <div>{task.title}</div>
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => handleOpenDetails(task)}>View</button>
-                        </div>
-                    ))}
+            {/* Render Groups - Now including Solved and Failed again */}
+{['New', 'Assigned', 'Solving', 'Solved', 'Failed'].map(status => (
+    <div key={status} className="mb-4">
+        {/* We use a conditional check to add the custom indigo style only to 'New' */}
+        <div className={`p-3 rounded-4 d-flex justify-content-between align-items-center ${
+            status === 'New' ? 'custom-bg-new text-indigo-dark' : 
+            status === 'Solved' ? 'bg-success text-white' : 
+            status === 'Failed' ? 'bg-danger text-white' : 
+            'bg-light'
+        }`}>
+            <span className="fw-bold">{status}</span>
+            <span className="badge bg-white text-dark shadow-sm">
+                {tasks.filter(t => t.status === status).length}
+            </span>
+        </div>
+        
+        {tasks.filter(t => t.status === status).map(task => (
+            <div key={task.id} className="ms-3 p-3 bg-white border rounded-3 mt-2 shadow-sm d-flex justify-content-between align-items-center">
+                <div>
+                    <div className="fw-bold">{task.title}</div>
+                    <small className="text-muted">Deadline: {new Date(task.deadline).toLocaleDateString()}</small>
                 </div>
-            ))}
+                <button className="btn btn-sm btn-outline-primary" onClick={() => handleOpenDetails(task)}>View</button>
+            </div>
+        ))}
+
+        {/* Show a small message if a category is empty */}
+        {tasks.filter(t => t.status === status).length === 0 && (
+            <div className="ms-3 mt-2 small text-muted italic">No tickets in this category.</div>
+        )}
+    </div>
+))}
 
             {/* --- MODAL WITH FILTERED REASSIGN --- */}
             <div className="modal fade" id="detailsModal" tabIndex="-1">
