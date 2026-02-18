@@ -11,10 +11,12 @@ import { generateSupportTicket } from "./services/aiService.js";
 const app = express();
 const port = 5001;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const assigneeRoutes = require('./assigneeRoutes'); // 1. Import your file
 
 app.use('/uploads', express.static('uploads'));
 app.use(cors());
 app.use(express.json());
+app.use('/api/assignee', assigneeRoutes(db));        // 2. Link it using their 'db'
 
 // MySQL Connection
 const db = mysql.createConnection({
