@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import AssigneeDashboard from './AssigneeDashboard'; // Add this
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -743,6 +744,10 @@ return (
                         </form>
                     )}
 
+                    {/* --- For Assignee by Kwan --- */}
+                    {role === 'assignee' && (
+                        <AssigneeDashboard userId={userId} API_URL={API_URL} />)}
+
                     {/* 3. Task Groups (Lists) */}
                     {role === 'admin' ? (
                         // Admin Lists
@@ -759,6 +764,7 @@ return (
                                 <p className="mt-3">Access Denied: Admin Only</p>
                             </div>
                         )
+                    
                     )}
                 </div>
             )}

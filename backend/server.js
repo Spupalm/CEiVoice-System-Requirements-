@@ -7,16 +7,15 @@ import bcrypt from 'bcrypt';
 import axios from 'axios';
 import { OAuth2Client } from 'google-auth-library';
 import { generateSupportTicket } from "./services/aiService.js";
+import assigneeRoutes from './assigneeRoutes.js';
 
 const app = express();
 const port = 5001;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const assigneeRoutes = require('./assigneeRoutes'); // 1. Import your file
 
 app.use('/uploads', express.static('uploads'));
 app.use(cors());
 app.use(express.json());
-app.use('/api/assignee', assigneeRoutes(db));        // 2. Link it using their 'db'
 
 // MySQL Connection
 const db = mysql.createConnection({
@@ -26,6 +25,10 @@ const db = mysql.createConnection({
     database: process.env.database,
     port: process.env.port
 });
+
+// Then, and only then, you can use 'db'
+app.use('/api/assignee', assigneeRoutes(db));
+
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),

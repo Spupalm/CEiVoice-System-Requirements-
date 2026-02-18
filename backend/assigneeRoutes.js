@@ -1,9 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-module.exports = (db) => {
-
-    // 1. GET TASKS: Get tickets where user is Assignee OR Follower
+export default (db) => {
+    // 1. Get tasks for Assignee or Follower
     router.get('/my-tasks/:userId', (req, res) => {
         const userId = parseInt(req.params.userId);
         const sql = `
@@ -18,9 +17,8 @@ module.exports = (db) => {
             LEFT JOIN users u ON t.assignee_id = u.id
             WHERE tf.user_id = ?
             ORDER BY deadline ASC`;
-        
         db.query(sql, [userId, userId], (err, results) => {
-            if (err) return res.status(500).send({ message: err.sqlMessage });
+            if (err) return res.status(500).json({ error: err.message });
             res.json(results);
         });
     });
