@@ -174,14 +174,17 @@ function AssigneeDashboard({ userId, API_URL }) {
                                     <h6 className="small fw-bold text-muted uppercase">History Log</h6>
                                     <div className="overflow-auto pe-2" style={{maxHeight: '200px'}}>
                                         {history.map(h => (
-                                            <div key={h.id} className="small border-bottom mb-2 pb-1 border-start border-3 ps-2 border-primary">
-                                                <div className="fw-bold">{h.old_value} → {h.new_value}</div>
-                                                {/* Updated: Added full Date/Time to History */}
-                                                <div className="text-muted" style={{fontSize: '0.7rem'}}>
-                                                    {new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                            </div>
-                                        ))}
+    <div key={h.id} className="small border-bottom mb-2 pb-1 border-start border-3 ps-2 border-primary">
+        <div className="fw-bold">{h.old_value} → {h.new_value}</div>
+        
+        {/* ADD THIS LINE BELOW */}
+        <div className="text-dark small">By: {h.performer_name || h.performer_username || 'System'}</div>
+        
+        <div className="text-muted" style={{fontSize: '0.7rem'}}>
+            {new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </div>
+    </div>
+))}
                                     </div>
                                 </div>
 

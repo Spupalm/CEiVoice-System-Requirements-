@@ -103,19 +103,23 @@ router.get('/list-all', (req, res) => {
         });
     });
 
-    // 3. Get Ticket History Log (EP04-ST003)
-    router.get('/history/:ticketId', (req, res) => {
-        const sql = `
-            SELECT h.*, u.full_name as performer_name 
-            FROM ticket_history h
-            LEFT JOIN users u ON h.performed_by = u.id
-            WHERE h.ticket_id = ?
-            ORDER BY h.created_at DESC`;
-        db.query(sql, [req.params.ticketId], (err, results) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json(results);
-        });
+router.get('/history/:ticketId', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT 
+            h.*, 
+            u.full_name AS performer_name,
+            u.username AS performer_username
+        FROM ticket_history h
+        LEFT JOIN users u ON h.performed_by = u.id
+        WHERE h.ticket_id = ?
+        ORDER BY h.created_at DESC
+    `;
+    db.query(sql, [ticketId], (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
     });
+});
 
     // 4. Post a Comment (EP05-ST002)
     router.post('/comment', (req, res) => {
