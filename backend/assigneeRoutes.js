@@ -3,6 +3,40 @@ const router = express.Router();
 
 export default (db) => {
 
+router.post('/post-comment', (req, res) => {
+    const { ticket_id, user_id, comment_text, is_internal } = req.body;
+
+    // Convert the checkbox (true/false) into your DB's expected strings
+    const type = is_internal ? 'internal' : 'public';
+
+    const sql = "INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, ?)";
+    
+    db.query(sql, [ticket_id, user_id, comment_text, type], (err, result) => {
+        if (err) {
+            console.error("SQL Error:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: "Success", id: result.insertId });
+    });
+});
+
+
+// EP05-ST001: Get all comments for a ticket
+router.get('/comments/:ticketId', (req, res) => {
+    const { ticketId } = req.params;
+    // We join with users to get the name of the person who commented
+    const sql = `
+        SELECT c.id, c.comment_text, c.comment_type, c.created_at, u.username, u.full_name        
+        FROM comments c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.ticket_id = ?
+        ORDER BY c.created_at ASC
+    `;
+    db.query(sql, [ticketId], (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
 
     // Add this inside assigneeRoutes.js
 router.get('/list-all', (req, res) => {
