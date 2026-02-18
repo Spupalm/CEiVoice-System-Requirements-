@@ -114,14 +114,14 @@ router.get('/list-all', (req, res) => {
                 db.query(statusHistorySql, [id, old_status, status, performed_by]);
             }
 
-            // LOG REASSIGNMENT (EP04-ST005)
-            if (old_assignee_id && parseInt(old_assignee_id) !== parseInt(assignee_id)) {
-                const reassignHistorySql = `
-                    INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by) 
-                    VALUES (?, 'REASSIGN', ?, ?, ?)`;
-                db.query(reassignHistorySql, [id, `User ${old_assignee_id}`, `User ${assignee_id}`, performed_by]);
-            }
-
+// LOG REASSIGNMENT (EP04-ST005)
+if (old_assignee_id && parseInt(old_assignee_id) !== parseInt(assignee_id)) {
+    const reassignHistorySql = `
+        INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by) 
+        VALUES (?, 'REASSIGN', ?, ?, ?)`;
+    // FIX: Remove `User ` prefix
+    db.query(reassignHistorySql, [id, old_assignee_id, assignee_id, performed_by]);
+}
             res.json({ success: true });
         });
     });

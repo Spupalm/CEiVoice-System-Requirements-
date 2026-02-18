@@ -30,12 +30,27 @@ function AssigneeDashboard({ userId, API_URL }) {
 
     const totalWorkload = tasks.filter(t => ['new', 'assigned', 'solving'].includes(t.status.toLowerCase())).length;
 
+const getNameFromId = (id) => {
+    if (!id) return "Unassigned";
+
+    // Clean the ID: if it's "User 22", turn it into "22"
+    const cleanId = String(id).replace("User ", "").trim();
+
+    // Check if it's a number
+    const user = allUsers.find(u => Number(u.id) === Number(cleanId));
+    
+    if (user) return user.full_name || user.username;
+    
+    // If it's not a user ID (e.g., "Solved"), return the original value
+    return id; 
+};
+
     const handleOpenDetails = (ticket) => {
         setSelectedTicket(ticket);
         setTempStatus(ticket.status);
         setNewAssigneeId(ticket.assignee_id);
+        setResolution(""); 
         
-        // Refresh History, Comments, and Teammates
         fetch(`${API_URL}/assignee/history/${ticket.id}`).then(res => res.json()).then(setHistory);
         fetch(`${API_URL}/assignee/comments/${ticket.id}`).then(res => res.json()).then(setComments);
         fetch(`${API_URL}/assignee/followers/${ticket.id}`).then(res => res.json()).then(setFollowers);
@@ -73,23 +88,46 @@ function AssigneeDashboard({ userId, API_URL }) {
         });
     };
 
-    const submitUpdate = () => {
-        if ((tempStatus.toLowerCase() === 'solved' || tempStatus.toLowerCase() === 'failed') && !resolution.trim()) {
+    const submitUpdate = async () => {
+        const isClosing = tempStatus.toLowerCase() === 'solved' || tempStatus.toLowerCase() === 'failed';
+        
+        if (isClosing && !resolution.trim()) {
             alert("Resolution comment is required to close this ticket!");
             return;
         }
-        fetch(`${API_URL}/assignee/update-ticket/${selectedTicket.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                status: tempStatus,
-                assignee_id: newAssigneeId,
-                resolution_comment: resolution,
-                performed_by: userId,
-                old_status: selectedTicket.status,
-                old_assignee_id: selectedTicket.assignee_id
-            })
-        }).then(() => window.location.reload());
+
+        try {
+            if (isClosing) {
+                await fetch(`${API_URL}/assignee/post-comment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ticket_id: selectedTicket.id,
+                        user_id: userId,
+                        comment_text: `[RESOLUTION]: ${resolution}`,
+                        is_internal: false
+                    })
+                });
+            }
+
+            await fetch(`${API_URL}/assignee/update-ticket/${selectedTicket.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: tempStatus,
+                    assignee_id: newAssigneeId,
+                    resolution_comment: resolution,
+                    performed_by: userId,
+                    old_status: selectedTicket.status,
+                    old_assignee_id: selectedTicket.assignee_id
+                })
+            });
+
+            window.location.reload();
+        } catch (error) {
+            console.error("Update failed:", error);
+            alert("There was an error updating the ticket.");
+        }
     };
 
     return (
@@ -100,6 +138,7 @@ function AssigneeDashboard({ userId, API_URL }) {
                 .comment-internal { background-color: #fff4e5 !important; border-left: 5px solid #ff9800 !important; }
                 .comment-public { background-color: #f8f9fa !important; border-left: 5px solid #0d6efd !important; }
                 .text-orange { color: #e67e22 !important; }
+                .resolution-tag { color: #198754; font-weight: bold; }
             `}</style>
 
             <div className="d-flex align-items-center mb-4">
@@ -136,7 +175,6 @@ function AssigneeDashboard({ userId, API_URL }) {
                 );
             })}
 
-            {/* Modal */}
             <div className="modal fade" id="detailsModal" tabIndex="-1">
                 <div className="modal-dialog modal-xl">
                     <div className="modal-content rounded-4 border-0 shadow">
@@ -146,7 +184,6 @@ function AssigneeDashboard({ userId, API_URL }) {
                         </div>
                         <div className="modal-body p-4">
                             <div className="row">
-                                {/* LEFT COLUMN: ROLES & ACTIONS */}
                                 <div className="col-md-4 border-end">
                                     <div className="bg-light p-3 rounded-3 mb-4 border">
                                         <h6 className="fw-bold text-muted small mb-2 text-uppercase">Project Roles</h6>
@@ -157,7 +194,7 @@ function AssigneeDashboard({ userId, API_URL }) {
                                         <div className="mb-3">
                                             <span className="badge bg-primary me-2">Head Lead</span>
                                             <span className="small fw-bold">
-                                                {allUsers.find(u => u.id === selectedTicket?.assignee_id)?.full_name || "Unassigned"}
+                                                {getNameFromId(selectedTicket?.assignee_id)}
                                             </span>
                                         </div>
                                         <hr/>
@@ -184,12 +221,15 @@ function AssigneeDashboard({ userId, API_URL }) {
                                         </select>
 
                                         <label className="small fw-bold mb-1">Reassign Head Lead</label>
-                                        <select className="form-select mb-3" value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)}>
-                                            {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+                                        <select className="form-select mb-3" value={newAssigneeId || ""} onChange={(e) => setNewAssigneeId(e.target.value)}>
+                                            <option value="" disabled>Select Lead</option>
+                                            {allUsers.map(u => (
+                                                <option key={u.id} value={u.id}>{u.full_name || u.username}</option>
+                                            ))}
                                         </select>
 
                                         {(tempStatus.toLowerCase() === 'solved' || tempStatus.toLowerCase() === 'failed') && (
-                                            <textarea className="form-control mb-3" placeholder="Closing resolution..." value={resolution} onChange={(e) => setResolution(e.target.value)} />
+                                            <textarea className="form-control mb-3" placeholder="Closing resolution (will be shared with customer)..." value={resolution} onChange={(e) => setResolution(e.target.value)} />
                                         )}
                                         <button className="btn btn-primary w-100 rounded-pill" onClick={submitUpdate}>Save Changes</button>
                                     </div>
@@ -198,7 +238,9 @@ function AssigneeDashboard({ userId, API_URL }) {
                                     <div className="overflow-auto pe-2" style={{maxHeight: '150px'}}>
                                         {history.map(h => (
                                             <div key={h.id} className="small border-bottom mb-2 pb-1 border-start border-3 ps-2 border-primary">
-                                                <div className="fw-bold">{h.old_value} → {h.new_value}</div>
+                                                <div className="fw-bold">
+                                                    {getNameFromId(h.old_value)} → {getNameFromId(h.new_value)}
+                                                </div>
                                                 <div className="text-dark small">By: {h.performer_name || h.performer_username || 'System'}</div>
                                                 <div className="text-muted" style={{fontSize: '0.7rem'}}>
                                                     {new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -208,7 +250,6 @@ function AssigneeDashboard({ userId, API_URL }) {
                                     </div>
                                 </div>
 
-                                {/* RIGHT COLUMN: CHAT */}
                                 <div className="col-md-8 ps-4">
                                     <h6 className="fw-bold mb-3">💬 Communications</h6>
                                     <div className="overflow-auto mb-3 pe-2" style={{ height: '350px' }}>
@@ -218,7 +259,12 @@ function AssigneeDashboard({ userId, API_URL }) {
                                                     <span>{c.full_name || c.username}</span>
                                                     {c.comment_type === 'internal' && <span className="text-orange">🔒 INTERNAL NOTE</span>}
                                                 </div>
-                                                <div className="mb-1" style={{fontSize: '0.95rem'}}>{c.comment_text}</div>
+                                                <div className="mb-1" style={{fontSize: '0.95rem'}}>
+                                                    {c.comment_text.startsWith('[RESOLUTION]') ? 
+                                                        <span className="resolution-tag">{c.comment_text}</span> : 
+                                                        c.comment_text
+                                                    }
+                                                </div>
                                                 <div className="text-muted" style={{fontSize: '0.7rem'}}>
                                                     {new Date(c.created_at).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                                                 </div>
