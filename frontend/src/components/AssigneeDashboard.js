@@ -1,28 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
-// 1. Color Helper for Status Badges
-const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-        case 'new': return 'custom-bg-new text-indigo-dark'; 
-        case 'assigned': return 'bg-primary text-white';
-        case 'solving': return 'bg-warning text-dark';
-        case 'solved': return 'bg-success text-white';
-        case 'failed': return 'bg-danger text-white';
-        default: return 'bg-secondary text-white';
-    }
-};
-
 function AssigneeDashboard({ userId, API_URL }) {
     const [tasks, setTasks] = useState([]);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [history, setHistory] = useState([]);
     const [allUsers, setAllUsers] = useState([]); 
     const [comments, setComments] = useState([]); 
+    const [followers, setFollowers] = useState([]);
     
-    // EP05-ST002 States
     const [newComment, setNewComment] = useState("");
     const [isInternal, setIsInternal] = useState(false);
-
     const [newAssigneeId, setNewAssigneeId] = useState("");
     const [resolution, setResolution] = useState("");
     const [tempStatus, setTempStatus] = useState("");
@@ -37,7 +24,7 @@ function AssigneeDashboard({ userId, API_URL }) {
 
         fetch(`${API_URL}/assignee/list-all`)
             .then(res => res.json())
-            .then(data => setAllUsers(data))
+            .then(setAllUsers)
             .catch(err => console.error("Dropdown fetch error:", err));
     }, [userId, API_URL]);
 
@@ -48,17 +35,28 @@ function AssigneeDashboard({ userId, API_URL }) {
         setTempStatus(ticket.status);
         setNewAssigneeId(ticket.assignee_id);
         
-        // Refresh History & Comments
+        // Refresh History, Comments, and Teammates
         fetch(`${API_URL}/assignee/history/${ticket.id}`).then(res => res.json()).then(setHistory);
         fetch(`${API_URL}/assignee/comments/${ticket.id}`).then(res => res.json()).then(setComments);
+        fetch(`${API_URL}/assignee/followers/${ticket.id}`).then(res => res.json()).then(setFollowers);
 
         const modal = new window.bootstrap.Modal(document.getElementById('detailsModal'));
         modal.show();
     };
 
+    const handleAddFollower = (ticketId, teammateId) => {
+        if (!teammateId) return;
+        fetch(`${API_URL}/assignee/add-follower`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticket_id: ticketId, user_id: teammateId })
+        }).then(() => {
+            fetch(`${API_URL}/assignee/followers/${ticketId}`).then(res => res.json()).then(setFollowers);
+        });
+    };
+
     const handlePostComment = () => {
         if (!newComment.trim()) return;
-
         fetch(`${API_URL}/assignee/post-comment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -68,9 +66,7 @@ function AssigneeDashboard({ userId, API_URL }) {
                 comment_text: newComment,
                 is_internal: isInternal
             })
-        })
-        .then(res => res.json())
-        .then(() => {
+        }).then(() => {
             setNewComment(""); 
             setIsInternal(false); 
             fetch(`${API_URL}/assignee/comments/${selectedTicket.id}`).then(res => res.json()).then(setComments);
@@ -82,7 +78,6 @@ function AssigneeDashboard({ userId, API_URL }) {
             alert("Resolution comment is required to close this ticket!");
             return;
         }
-
         fetch(`${API_URL}/assignee/update-ticket/${selectedTicket.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -102,7 +97,6 @@ function AssigneeDashboard({ userId, API_URL }) {
             <style>{`
                 .custom-bg-new { background-color: #e0e7ff !important; }
                 .text-indigo-dark { color: #4338ca !important; }
-                /* Visual effects for internal vs public */
                 .comment-internal { background-color: #fff4e5 !important; border-left: 5px solid #ff9800 !important; }
                 .comment-public { background-color: #f8f9fa !important; border-left: 5px solid #0d6efd !important; }
                 .text-orange { color: #e67e22 !important; }
@@ -119,6 +113,8 @@ function AssigneeDashboard({ userId, API_URL }) {
                     <div key={group} className="mb-4">
                         <div className={`p-3 rounded-4 d-flex justify-content-between align-items-center ${
                             group === 'New' ? 'custom-bg-new text-indigo-dark' : 
+                            group === 'Assigned' ? 'bg-primary text-white' : 
+                            group === 'Solving' ? 'bg-warning text-dark' : 
                             group === 'Solved' ? 'bg-success text-white' : 
                             group === 'Failed' ? 'bg-danger text-white' : 'bg-light'
                         }`}>
@@ -129,9 +125,8 @@ function AssigneeDashboard({ userId, API_URL }) {
                             <div key={task.id} className="ms-3 p-3 bg-white border rounded-3 mt-2 shadow-sm d-flex justify-content-between align-items-center">
                                 <div>
                                     <div className="fw-bold">{task.title}</div>
-                                    {/* Updated: Showing Date and Time for Deadline */}
                                     <small className="text-muted">
-                                        Deadline: {new Date(task.deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                        Deadline: {new Date(task.deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </small>
                                 </div>
                                 <button className="btn btn-sm btn-outline-primary" onClick={() => handleOpenDetails(task)}>View</button>
@@ -151,45 +146,71 @@ function AssigneeDashboard({ userId, API_URL }) {
                         </div>
                         <div className="modal-body p-4">
                             <div className="row">
+                                {/* LEFT COLUMN: ROLES & ACTIONS */}
                                 <div className="col-md-4 border-end">
-                                    <label className="small fw-bold">Update Status</label>
-                                    <select className="form-select mb-3" value={tempStatus} onChange={(e) => setTempStatus(e.target.value)}>
-                                        <option value="New">New</option>
-                                        <option value="Assigned">Assigned</option>
-                                        <option value="Solving">Solving</option>
-                                        <option value="Solved">Solved</option>
-                                        <option value="Failed">Failed</option>
-                                    </select>
+                                    <div className="bg-light p-3 rounded-3 mb-4 border">
+                                        <h6 className="fw-bold text-muted small mb-2 text-uppercase">Project Roles</h6>
+                                        <div className="mb-2">
+                                            <span className="badge bg-secondary me-2">Creator</span>
+                                            <span className="small">{selectedTicket?.creator_name || "Customer"}</span>
+                                        </div>
+                                        <div className="mb-3">
+                                            <span className="badge bg-primary me-2">Head Lead</span>
+                                            <span className="small fw-bold">
+                                                {allUsers.find(u => u.id === selectedTicket?.assignee_id)?.full_name || "Unassigned"}
+                                            </span>
+                                        </div>
+                                        <hr/>
+                                        <h6 className="fw-bold text-muted small mb-2 text-uppercase">Teammates</h6>
+                                        <div className="d-flex flex-wrap gap-1 mb-2">
+                                            {followers.length > 0 ? followers.map(f => (
+                                                <span key={f.id} className="badge bg-white text-dark border shadow-sm small">👤 {f.full_name || f.username}</span>
+                                            )) : <div className="small text-muted italic">No followers</div>}
+                                        </div>
+                                        <select className="form-select form-select-sm" onChange={(e) => handleAddFollower(selectedTicket.id, e.target.value)} value="">
+                                            <option value="" disabled>+ Add Teammate</option>
+                                            {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+                                        </select>
+                                    </div>
 
-                                    <label className="small fw-bold">Reassign To</label>
-                                    <select className="form-select mb-3" value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)}>
-                                        {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
-                                    </select>
+                                    <div className="p-3 border rounded-3 bg-white mb-4">
+                                        <label className="small fw-bold mb-1">Update Status</label>
+                                        <select className="form-select mb-3" value={tempStatus} onChange={(e) => setTempStatus(e.target.value)}>
+                                            <option value="New">New</option>
+                                            <option value="Assigned">Assigned</option>
+                                            <option value="Solving">Solving</option>
+                                            <option value="Solved">Solved</option>
+                                            <option value="Failed">Failed</option>
+                                        </select>
 
-                                    {(tempStatus.toLowerCase() === 'solved' || tempStatus.toLowerCase() === 'failed') && (
-                                        <textarea className="form-control mb-3" placeholder="Closing resolution..." value={resolution} onChange={(e) => setResolution(e.target.value)} />
-                                    )}
-                                    <button className="btn btn-primary w-100 rounded-pill mb-4" onClick={submitUpdate}>Save Changes</button>
+                                        <label className="small fw-bold mb-1">Reassign Head Lead</label>
+                                        <select className="form-select mb-3" value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)}>
+                                            {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+                                        </select>
+
+                                        {(tempStatus.toLowerCase() === 'solved' || tempStatus.toLowerCase() === 'failed') && (
+                                            <textarea className="form-control mb-3" placeholder="Closing resolution..." value={resolution} onChange={(e) => setResolution(e.target.value)} />
+                                        )}
+                                        <button className="btn btn-primary w-100 rounded-pill" onClick={submitUpdate}>Save Changes</button>
+                                    </div>
                                     
                                     <h6 className="small fw-bold text-muted uppercase">History Log</h6>
-                                    <div className="overflow-auto pe-2" style={{maxHeight: '200px'}}>
+                                    <div className="overflow-auto pe-2" style={{maxHeight: '150px'}}>
                                         {history.map(h => (
-    <div key={h.id} className="small border-bottom mb-2 pb-1 border-start border-3 ps-2 border-primary">
-        <div className="fw-bold">{h.old_value} → {h.new_value}</div>
-        
-        {/* ADD THIS LINE BELOW */}
-        <div className="text-dark small">By: {h.performer_name || h.performer_username || 'System'}</div>
-        
-        <div className="text-muted" style={{fontSize: '0.7rem'}}>
-            {new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-        </div>
-    </div>
-))}
+                                            <div key={h.id} className="small border-bottom mb-2 pb-1 border-start border-3 ps-2 border-primary">
+                                                <div className="fw-bold">{h.old_value} → {h.new_value}</div>
+                                                <div className="text-dark small">By: {h.performer_name || h.performer_username || 'System'}</div>
+                                                <div className="text-muted" style={{fontSize: '0.7rem'}}>
+                                                    {new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
+                                {/* RIGHT COLUMN: CHAT */}
                                 <div className="col-md-8 ps-4">
-                                    <h6 className="fw-bold mb-3">💬 Comments & Communications</h6>
+                                    <h6 className="fw-bold mb-3">💬 Communications</h6>
                                     <div className="overflow-auto mb-3 pe-2" style={{ height: '350px' }}>
                                         {comments.map(c => (
                                             <div key={c.id} className={`p-3 mb-3 rounded-3 shadow-sm ${c.comment_type === 'internal' ? 'comment-internal' : 'comment-public'}`}>
@@ -198,7 +219,6 @@ function AssigneeDashboard({ userId, API_URL }) {
                                                     {c.comment_type === 'internal' && <span className="text-orange">🔒 INTERNAL NOTE</span>}
                                                 </div>
                                                 <div className="mb-1" style={{fontSize: '0.95rem'}}>{c.comment_text}</div>
-                                                {/* Added: Timestamp for comments */}
                                                 <div className="text-muted" style={{fontSize: '0.7rem'}}>
                                                     {new Date(c.created_at).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                                                 </div>
@@ -207,13 +227,7 @@ function AssigneeDashboard({ userId, API_URL }) {
                                     </div>
 
                                     <div className="pt-3 border-top">
-                                        <textarea 
-                                            className="form-control mb-2" 
-                                            rows="2"
-                                            placeholder="Type your reply..."
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
-                                        />
+                                        <textarea className="form-control mb-2" rows="2" placeholder="Type a message..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
                                         <div className="d-flex justify-content-between align-items-center">
                                             <div className="form-check form-switch mt-1">
                                                 <input className="form-check-input" type="checkbox" id="intSwitch" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />

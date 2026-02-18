@@ -3,6 +3,29 @@ const router = express.Router();
 
 export default (db) => {
 
+// Add a teammate (follower)
+router.post('/add-follower', (req, res) => {
+    const { ticket_id, user_id } = req.body;
+    const sql = "INSERT IGNORE INTO ticket_followers (ticket_id, user_id) VALUES (?, ?)";
+    db.query(sql, [ticket_id, user_id], (err, result) => {
+        if (err) return res.status(500).json(err);
+        res.json({ message: "Teammate added" });
+    });
+});
+
+// Get all teammates for a specific ticket
+router.get('/followers/:ticketId', (req, res) => {
+    const sql = `
+        SELECT u.id, u.username, u.full_name 
+        FROM ticket_followers tf
+        JOIN users u ON tf.user_id = u.id
+        WHERE tf.ticket_id = ?`;
+    db.query(sql, [req.params.ticketId], (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
 router.post('/post-comment', (req, res) => {
     const { ticket_id, user_id, comment_text, is_internal } = req.body;
 
