@@ -2,65 +2,94 @@ import express from 'express';
 const router = express.Router();
 
 export default (db) => {
-    // Get tasks assigned to user or where they are a follower
+
+
+    // Add this inside assigneeRoutes.js
+router.get('/list-all', (req, res) => {
+    // We fetch only assignees and admins to fulfill EP04-ST004
+    const sql = "SELECT id, username, full_name FROM users WHERE role = 'assignee'";
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+    // 1. Get My Tasks (EP04-ST001)
+    // Fetches tickets where user is Assignee or a Follower
     router.get('/my-tasks/:userId', (req, res) => {
         const userId = req.params.userId;
         const sql = `
-            SELECT t.*, u.username AS assignee_name 
+            SELECT t.*, u.full_name AS assignee_name 
             FROM tickets t
             LEFT JOIN users u ON t.assignee_id = u.id
             WHERE t.assignee_id = ?
             UNION
-            SELECT t.*, u.username AS assignee_name 
+            SELECT t.*, u.full_name AS assignee_name 
             FROM tickets t
             JOIN ticket_followers tf ON t.id = tf.ticket_id
             LEFT JOIN users u ON t.assignee_id = u.id
             WHERE tf.user_id = ?`;
+            
         db.query(sql, [userId, userId], (err, results) => {
-            if (err) return res.status(500).json(err);
+            if (err) return res.status(500).json({ error: err.message });
             res.json(results);
         });
     });
 
-    // Get ticket history
+    // 2. Update Ticket Status & History (EP04-ST002, ST003, ST005)
+    router.put('/update-ticket/:id', (req, res) => {
+        const { id } = req.params;
+        const { status, assignee_id, resolution_comment, performed_by, old_status, old_assignee_id } = req.body;
+
+        // Update the main ticket record
+        const updateSql = `
+            UPDATE tickets 
+            SET status = ?, assignee_id = ?, resolution_comment = ? 
+            WHERE id = ?`;
+
+        db.query(updateSql, [status, assignee_id, resolution_comment, id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            // LOG STATUS CHANGE (EP04-ST003)
+            if (old_status && old_status !== status) {
+                const statusHistorySql = `
+                    INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by) 
+                    VALUES (?, 'STATUS_CHANGE', ?, ?, ?)`;
+                db.query(statusHistorySql, [id, old_status, status, performed_by]);
+            }
+
+            // LOG REASSIGNMENT (EP04-ST005)
+            if (old_assignee_id && parseInt(old_assignee_id) !== parseInt(assignee_id)) {
+                const reassignHistorySql = `
+                    INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by) 
+                    VALUES (?, 'REASSIGN', ?, ?, ?)`;
+                db.query(reassignHistorySql, [id, `User ${old_assignee_id}`, `User ${assignee_id}`, performed_by]);
+            }
+
+            res.json({ success: true });
+        });
+    });
+
+    // 3. Get Ticket History Log (EP04-ST003)
     router.get('/history/:ticketId', (req, res) => {
         const sql = `
-            SELECT h.*, u.username as assignee_name 
+            SELECT h.*, u.full_name as performer_name 
             FROM ticket_history h
             LEFT JOIN users u ON h.performed_by = u.id
             WHERE h.ticket_id = ?
             ORDER BY h.created_at DESC`;
         db.query(sql, [req.params.ticketId], (err, results) => {
-            if (err) return res.status(500).json(err);
+            if (err) return res.status(500).json({ error: err.message });
             res.json(results);
         });
     });
 
-    // 1. Post a new comment (EP05-ST002)
+    // 4. Post a Comment (EP05-ST002)
     router.post('/comment', (req, res) => {
         const { ticket_id, user_id, comment_text, comment_type } = req.body;
         const sql = `INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, ?)`;
         db.query(sql, [ticket_id, user_id, comment_text, comment_type], (err) => {
-            if (err) return res.status(500).json(err);
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
-        });
-    });
-
-    // 2. Reassign ticket & update status (EP04-ST002, ST004)
-    router.put('/update-ticket/:id', (req, res) => {
-        const { id } = req.params;
-        const { status, assignee_id, resolution_comment, performed_by } = req.body;
-        
-        // Update ticket main info
-        const sql = `UPDATE tickets SET status = ?, assignee_id = ?, resolution_comment = ? WHERE id = ?`;
-        db.query(sql, [status, assignee_id, resolution_comment, id], (err) => {
-            if (err) return res.status(500).json(err);
-            
-            // Log to history automatically (EP04-ST003)
-            const historySql = `INSERT INTO ticket_history (ticket_id, action_type, new_value, performed_by) VALUES (?, 'UPDATE', ?, ?)`;
-            db.query(historySql, [id, status, performed_by], () => {
-                res.json({ success: true });
-            });
         });
     });
 
