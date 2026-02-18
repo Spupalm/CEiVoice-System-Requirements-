@@ -95,8 +95,7 @@ app.post('/api/login', async (req, res) => {
                         username: user.username,
                         fullName: user.full_name,
                         profileImage: user.profile_image,
-                        role: user.role,
-                        skills: user.skills
+                        role: user.role
 
                     }
                 });
@@ -180,11 +179,6 @@ app.post('/api/google-login', async (req, res) => {
         res.status(401).json({ message: 'Invalid Google token' });
     }
 });
-// ------------------------------------
-// API: Todo List (Updated for Statuses)
-// ------------------------------------
-
-// 1. READ: Added target_datetime to SELECT
 
 
 app.post('/api/register', uploadProfile.single('profileImage'), async (req, res) => {
@@ -214,8 +208,6 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
             const hashedPassword = await bcrypt.hash(password, 10);
             const profileImage = req.file ? req.file.filename : null;
 
-            // --- 3. Insert User ลงตาราง users ---
-            // เราจะไม่ส่ง skills ลงในตาราง users แล้ว แต่จะแยกไปตารางกลางแทน
             const sqlUser = `
                 INSERT INTO users (full_name, username, password, profile_image, role)
                 VALUES (?, ?, ?, ?, ?)
@@ -263,8 +255,15 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
     }
 });
 
+app.get('/api/categories', (req, res) => {
+    db.query("SELECT id, name FROM categories", (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
 app.get('/api/users/assignees', (req, res) => {
-    const sql = "SELECT id, username, skills FROM users WHERE role = 'assignee'";
+    const sql = "SELECT id, username FROM users WHERE role = 'assignee'";
     db.query(sql, (err, results) => {
         if (err) {
             console.error("Fetch Assignees Error:", err);
@@ -332,11 +331,11 @@ app.post('/api/user-requests', (req, res) => {
                 console.log("AI Suggested Ticket:", ticket);
                 // 3. หา ID ของคนที่ AI เลือกมา (เปรียบเทียบจากชื่อที่ AI คืนกลับมาใน ticket.assignee_category_id)
                 const suggestedAssigneeId = ticket.assignee_category_id[0];
-                
+
 
                 // 4. หา ID ของหมวดหมู่ (Category) จากชื่อที่ AI แนะนำมา
                 const findCategorySql = "SELECT id FROM categories WHERE name = ? LIMIT 1";
-                
+
                 db.query(findCategorySql, [ticket.category], (catErr, catResults) => {
                     const categoryId = (!catErr && catResults.length > 0) ? catResults[0].id : null;
                     const resolutionPath = JSON.stringify(ticket.suggestedSolution);
@@ -368,9 +367,226 @@ app.post('/api/user-requests', (req, res) => {
     });
 });
 
-app.get('/api/categories', (req, res) => {
-    db.query("SELECT id, name FROM categories", (err, results) => {
-        if (err) return res.status(500).json(err);
+app.get('/api/admin/draft-tickets', (req, res) => {
+    const sql = `
+        SELECT 
+            dt.id,
+            dt.title,
+            dt.category AS ai_category_name,
+            dt.summary,
+            dt.resolution_path,
+            dt.status,
+            dt.created_at,
+            dt.assigned_to,
+            dt.deadline,
+            u.full_name AS suggested_assignee_name,
+            u.profile_image AS assignee_image,
+            c.name AS constraint_category_name
+        FROM draft_tickets dt
+        LEFT JOIN users u ON dt.assigned_to = u.id
+        LEFT JOIN categories c ON dt.suggested_assignees = c.id
+        ORDER BY dt.created_at DESC
+    `;
+    //console.log("Fetching draft tickets with SQL:", sql);
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching draft tickets:", err);
+            return res.status(500).json({ error: "Failed to fetch draft tickets" });
+        }
+
+        // แปลง resolution_path จาก string กลับเป็น array ก่อนส่งไป frontend
+        const formattedResults = results.map(ticket => ({
+            ...ticket,
+            resolution_path: ticket.resolution_path ? JSON.parse(ticket.resolution_path) : []
+        }));
+
+        res.json(formattedResults);
+    });
+});
+
+app.put('/api/admin/draft-tickets/:id', (req, res) => {
+    const { id } = req.params;
+    // ปรับตรงนี้: ดึงค่าจาก ai_category_name มาใส่ใน category ถ้า ai_category_name มีค่าส่งมา
+    const { title, category, ai_category_name, summary, assigned_to, deadline, status } = req.body;
+
+    // เลือกใช้ค่า category ที่มีข้อมูล (รองรับทั้งชื่อเก่าและชื่อใหม่จาก AI)
+    const finalCategory = ai_category_name || category;
+
+    const sql = `
+        UPDATE draft_tickets 
+        SET title = ?, category = ?, summary = ?, resolution_path = ?, assigned_to = ?, deadline = ?, status = ?
+        WHERE id = ?`;
+
+    db.query(sql, [
+        title,
+        finalCategory, // ใช้ตัวแปรที่รวมค่ามาแล้ว
+        summary,
+        JSON.stringify(req.body.resolution_path) || null,
+        assigned_to || null,
+        deadline || null,
+        status || 'Draft',
+        id
+    ], (err, result) => {
+        if (err) {
+            console.error("SQL Error:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ success: true });
+    });
+});
+
+// 1. ดึงข้อมูลจากตาราง user_requests (คำขอเริ่มต้น)
+app.get('/api/admin/user-requests', (req, res) => {
+    const sql = "SELECT * FROM user_requests ORDER BY created_at DESC";
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+// 2. ดึงข้อมูลจากตาราง draft_tickets (งานที่ผ่าน AI วิเคราะห์แล้ว)
+app.get('/api/admin/draft-tickets', (req, res) => {
+    const sql = `
+        SELECT dt.*, u.full_name as suggested_assignee_name 
+        FROM draft_tickets dt
+        LEFT JOIN users u ON dt.assigned_to = u.id
+        ORDER BY dt.created_at DESC`;
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+
+// 3. ดึงข้อมูลจากตาราง tickets (งานที่เป็นทางการ)
+app.get('/api/admin/official-tickets', (req, res) => {
+    const sql = `
+        SELECT t.*, u.full_name as assignee_name 
+        FROM tickets t
+        LEFT JOIN users u ON t.assignee_id = u.id
+        ORDER BY t.created_at DESC`;
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+app.post('/api/admin/approve-ticket', (req, res) => {
+    const { draft_id, title, category, summary, resolution_path, assignee_id, deadline } = req.body;
+
+    // แปลง ISO Date String เป็น MySQL Format (YYYY-MM-DD HH:MM:SS)
+    const formattedDeadline = deadline ? deadline.replace('T', ' ').replace(/\..*$/, '') : null;
+
+    const ticketNo = `TK-${Date.now()}`;
+
+    const sqlInsertTicket = `
+        INSERT INTO tickets (ticket_no, title, category, summary, resolution_path, status, assignee_id, deadline) 
+        VALUES (?, ?, ?, ?, ?, 'New', ?, ?)`;
+
+    db.query(sqlInsertTicket, [
+        ticketNo,
+        title,
+        category,
+        summary,
+        JSON.stringify(resolution_path),
+        assignee_id,
+        formattedDeadline // ใช้ตัวแปรที่แปลงฟอร์แมตแล้ว
+    ], (err, result) => {
+        if (err) {
+            console.error("Database Error:", err);
+            return res.status(500).json({ error: err.sqlMessage });
+        }
+
+        // 3. อัปเดตสถานะใน draft_tickets เป็น 'Submitted' เพื่อให้หายไปจากหน้าตาราง Draft
+        const sqlUpdateDraft = "UPDATE draft_tickets SET status = 'Submitted' WHERE id = ?";
+        db.query(sqlUpdateDraft, [draft_id], (updateErr) => {
+            if (updateErr) console.error("Update Draft Error:", updateErr);
+
+            // 4. อัปเดตสถานะใน user_requests เป็น 'ticket' เพื่อแจ้งผู้ใช้ว่ารับเรื่องแล้ว
+            db.query("UPDATE user_requests SET status = 'ticket' WHERE draft_ticket_id = ?", [draft_id]);
+
+            res.json({
+                success: true,
+                message: "Ticket approved successfully",
+                ticket_no: ticketNo
+            });
+        });
+    });
+});
+
+app.get('/api/admin/users', (req, res) => {
+    const sql = `
+        SELECT 
+            u.id, 
+            u.full_name, 
+            u.username, 
+            u.role, 
+            u.profile_image,
+            GROUP_CONCAT(c.id) AS skill_ids,
+            GROUP_CONCAT(c.name SEPARATOR ', ') AS skill_names
+        FROM users u
+        LEFT JOIN user_skills us ON u.id = us.user_id
+        LEFT JOIN categories c ON us.category_id = c.id
+        GROUP BY u.id`;
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error("Database Error:", err.message);
+            return res.status(500).json({ error: "Failed to fetch users" });
+        }
+        res.json(results);
+    });
+});
+
+app.put('/api/admin/users/:id', async (req, res) => {
+    console.log("Update User Request Body:", req.body);
+    const userId = req.params.id;
+    const { full_name, role, skills } = req.body;
+
+    try {
+
+        await db.query('UPDATE users SET full_name = ?, role = ? WHERE id = ?', [full_name, role, userId]);
+
+        await db.query('DELETE FROM user_skills WHERE user_id = ?', [userId]);
+
+        if (skills && skills.length > 0) {
+            const skillValues = skills.map(catId => [userId, catId]);
+            await db.query('INSERT INTO user_skills (user_id, category_id) VALUES ?', [skillValues]);
+        }
+
+        res.json({ message: 'Updated successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+app.get('/api/users/:userId/tickets', (req, res) => {
+    const { userId } = req.params;
+
+    // We join user_requests -> draft_tickets -> tickets
+    // This follows the request's journey through your database
+    const sql = `
+        SELECT 
+            ur.id AS request_id, 
+            ur.message AS original_message, 
+            ur.status AS request_status, 
+            ur.created_at,
+            dt.title AS ai_title,
+            t.status AS official_status,
+            t.ticket_no
+        FROM user_requests ur
+        LEFT JOIN draft_tickets dt ON ur.draft_ticket_id = dt.id
+        LEFT JOIN tickets t ON (t.title = dt.title AND ur.status = 'ticket')
+        WHERE ur.user_id = ?
+        ORDER BY ur.created_at DESC
+    `;
+
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            console.error("Database Error:", err);
+            return res.status(500).json({ error: "Failed to fetch history" });
+        }
         res.json(results);
     });
 });
