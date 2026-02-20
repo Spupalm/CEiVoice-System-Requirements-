@@ -87,6 +87,9 @@ app.post('/api/login', async (req, res) => {
                 }
 
                 const user = results[0];
+                if (user.is_approved === 0) {
+                    return res.status(403).json("Your account is pending approval from Admin.");
+                }
                 const isMatch = await bcrypt.compare(password, user.password);
 
                 if (!isMatch) {
@@ -212,13 +215,13 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
 
             const hashedPassword = await bcrypt.hash(password, 10);
             const profileImage = req.file ? req.file.filename : null;
-
+            const isApproved = (role === 'assignee') ? 0 : 1;
             const sqlUser = `
-                INSERT INTO users (full_name, username, password, profile_image, role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (full_name, username, password, profile_image, role, is_approved)
+                VALUES (?, ?, ?, ?, ?, ?)
             `;
 
-            db.query(sqlUser, [fullName, username, hashedPassword, profileImage, role], (err, userResult) => {
+            db.query(sqlUser, [fullName, username, hashedPassword, profileImage, role, isApproved], (err, userResult) => {
                 if (err) {
                     console.error("Registration Error:", err);
                     return res.status(500).json({ message: 'Database error during insertion' });
@@ -248,10 +251,19 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
                     }
                 }
 
-                res.status(201).json({
-                    success: true,
-                    message: 'User registered successfully and skills linked!'
-                });
+                if (role === 'assignee') {
+                    res.status(201).json({
+                        success: true,
+                        isPending: true, // บอก Frontend ว่าสถานะคือรออนุมัติ
+                        message: 'Registration successful! Your account is pending admin approval.'
+                    });
+                } else {
+                    res.status(201).json({
+                        success: true,
+                        isPending: false, // บอก Frontend ว่าใช้งานได้เลย
+                        message: 'Registration successful! You can now log in.'
+                    });
+                }
             });
         });
     } catch (err) {
@@ -281,9 +293,9 @@ app.get('/api/users/assignees', (req, res) => {
 // Adding this route to your friend's server.js
 app.post('/api/todos', (req, res) => {
     // We use their 'db' variable instead of your old one
-    const { task, assigned_to } = req.body; 
+    const { task, assigned_to } = req.body;
     const sql = "INSERT INTO todo (task, assigned_to) VALUES (?, ?)";
-    
+
     db.query(sql, [task, assigned_to], (err, result) => {
         if (err) return res.status(500).json(err);
         res.json({ success: true, id: result.insertId });
@@ -871,6 +883,23 @@ app.put('/api/admin/users/:id', async (req, res) => {
         console.error("Database Error:", err);
         res.status(500).json({ error: err.message });
     }
+});
+
+app.get('/api/admin/pending-approvals', (req, res) => {
+    const sql = "SELECT id, username, full_name, role FROM users WHERE is_approved = 0";
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+app.put('/api/admin/approve-user/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = "UPDATE users SET is_approved = 1 WHERE id = ?";
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: "User approved successfully" });
+    });
 });
 
 app.listen(port, () => {

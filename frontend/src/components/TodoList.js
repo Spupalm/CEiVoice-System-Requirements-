@@ -23,7 +23,8 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         'user-requests': ['received', 'draft', 'ticket'],
         'drafts': ['Draft', 'Submitted', 'Merged'],
         'official': ['New', 'Assigned', 'Solving', 'Solved', 'Fail'],
-        'users': ['admin', 'assignee', 'user']
+        'users': ['admin', 'assignee', 'user'],
+        'approvals': []
     }
     // Load Data
     useEffect(() => {
@@ -410,6 +411,12 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                         onClick={() => setCurrentView('users')}
                     >
                         <i className="bi bi-people me-2"></i> Users
+                    </button>
+                    <button
+                        className={`btn text-start w-100 py-2 px-3 rounded-3 mb-2 transition-all ${currentView === 'approvals' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark'}`}
+                        onClick={() => setCurrentView('approvals')}
+                    >
+                        <i className="bi bi-person-check me-2"></i> Approvals
                     </button>
                 </div>
             )}
@@ -868,7 +875,74 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
             </div>
         );
     };
+    const AdminApprovalSection = ({ API_URL }) => {
+        const [pendingUsers, setPendingUsers] = React.useState([]);
 
+        const fetchPending = () => {
+            fetch(`${API_URL}/admin/pending-approvals`)
+                .then(res => res.json())
+                .then(data => setPendingUsers(data))
+                .catch(err => console.error(err));
+        };
+
+        React.useEffect(() => { fetchPending(); }, []);
+
+        const handleApprove = (id) => {
+            Swal.fire({
+                title: 'Confirm Approval?',
+                text: "This user will gain access to the system.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                confirmButtonText: 'Yes, Approve'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`${API_URL}/admin/approve-user/${id}`, { method: 'PUT' })
+                        .then(res => res.json())
+                        .then(() => {
+                            Swal.fire('Approved!', 'User is now active.', 'success');
+                            fetchPending();
+                        });
+                }
+            });
+        };
+
+        return (
+            <div className="card border-0 shadow-sm rounded-4 p-4">
+                <h4 className="fw-bold mb-4 text-primary"><i className="bi bi-person-check-fill me-2"></i>Pending Approvals</h4>
+                {pendingUsers.length === 0 ? (
+                    <div className="text-center py-5 text-muted">No pending registrations found.</div>
+                ) : (
+                    <div className="table-responsive">
+                        <table className="table table-hover align-middle">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pendingUsers.map(u => (
+                                    <tr key={u.id}>
+                                        <td className="fw-bold">{u.full_name}</td>
+                                        <td>{u.username}</td>
+                                        <td><span className="badge bg-info text-dark">{u.role}</span></td>
+                                        <td>
+                                            <button className="btn btn-success btn-sm rounded-pill px-3" onClick={() => handleApprove(u.id)}>
+                                                Approve
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        );
+    };
     return (
         <div className="d-flex min-vh-100 bg-white">
             {renderSidebar()}
@@ -945,6 +1019,18 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                 <i className="bi bi-lock text-muted display-1"></i>
                                 <p className="mt-3 text-muted">Access Denied: Admin Only</p>
                             </div>
+                        )}
+                        {role === 'admin' && (
+                            currentView === 'approvals' ? (
+                                /* เพิ่มบรรทัดนี้เพื่อเรียกใช้ Section ที่เราสร้างไว้ข้างบน */
+                                <AdminApprovalSection API_URL={API_URL} />
+                            ) : (
+                                viewConfigs[currentView] ? (
+                                    viewConfigs[currentView].map(status => renderTaskGroup(status))
+                                ) : (
+                                    <div className="text-center py-5 text-muted">No configuration for this view.</div>
+                                )
+                            )
                         )}
                     </div>
                 )}

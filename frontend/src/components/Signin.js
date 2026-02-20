@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import ReCAPTCHA from "react-google-recaptcha";
+import Swal from 'sweetalert2';
 const API_URL = process.env.REACT_APP_API_URL;
 
 function SignUp({ onSuccess, goToLogIn }) {
@@ -58,11 +59,12 @@ function SignUp({ onSuccess, goToLogIn }) {
             setError('Please specify your skills/expertise.');
             return;
         }
+
         const formData = new FormData();
         formData.append('fullName', fullName);
         formData.append('username', username);
         formData.append('password', password);
-        formData.append('role', role); // เพิ่ม role
+        formData.append('role', role);
         formData.append('skills', role === 'assignee' ? JSON.stringify(selectedSkills) : '[]');
         formData.append("captchaToken", captchaToken);
         if (profileImage) {
@@ -83,9 +85,31 @@ function SignUp({ onSuccess, goToLogIn }) {
                 return;
             }
 
-            onSuccess();
+            // --- ส่วนที่แก้ไขใหม่ เพื่อแจ้งเตือน Assignee ---
+            if (data.isPending) {
+                Swal.fire({
+                    title: 'Registration Successful!',
+                    text: 'Your account has been created. However, an administrator must approve your account before you can log in.',
+                    icon: 'info',
+                    confirmButtonText: 'Go to Login',
+                    confirmButtonColor: '#0d6efd',
+                }).then(() => {
+                    goToLogIn(); // ส่งกลับไปหน้า Login
+                });
+            } else {
+                // กรณี User ทั่วไป (Approved อัตโนมัติ)
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Account created successfully.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    onSuccess(); 
+                });
+            }
+
         } catch (err) {
-            //console.error('LOGIN ERROR:', err);
             setError('Network error: Could not connect to server.');
         }
     };
