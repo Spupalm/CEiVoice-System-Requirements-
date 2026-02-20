@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql_db
--- Generation Time: Feb 19, 2026 at 09:18 PM
+-- Generation Time: Feb 20, 2026 at 01:54 PM
 -- Server version: 8.0.44
 -- PHP Version: 8.3.26
 
@@ -20,8 +20,6 @@ SET time_zone = "+00:00";
 --
 -- Database: `ceidb`
 --
-CREATE DATABASE IF NOT EXISTS `ceidb` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE `ceidb`;
 
 -- --------------------------------------------------------
 
@@ -62,6 +60,13 @@ CREATE TABLE `comments` (
   `comment_type` enum('Public','Internal') DEFAULT 'Public',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `comments`
+--
+
+INSERT INTO `comments` (`id`, `ticket_id`, `user_id`, `comment_text`, `comment_type`, `created_at`) VALUES
+(1, 25, 22, 'ควย', 'Public', '2026-02-20 13:53:44');
 
 -- --------------------------------------------------------
 
@@ -110,7 +115,7 @@ CREATE TABLE `draft_tickets` (
 
 INSERT INTO `draft_tickets` (`id`, `title`, `category`, `summary`, `resolution_path`, `suggested_assignees`, `assigned_to`, `deadline`, `status`, `ai_suggested_merge_id`, `created_by_ai`, `created_at`, `updated_at`) VALUES
 (35, 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 1, NULL, NULL, 'Submitted', NULL, 1, '2026-02-19 12:29:52', '2026-02-19 15:35:34'),
-(36, 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\'s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 1, 25, NULL, 'Draft', NULL, 1, '2026-02-19 12:34:48', '2026-02-19 14:20:18'");
+(36, 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\'s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 1, 22, '2026-02-21 19:13:00', 'Submitted', NULL, 1, '2026-02-19 12:34:48', '2026-02-20 12:13:58');
 
 -- --------------------------------------------------------
 
@@ -126,6 +131,7 @@ CREATE TABLE `tickets` (
   `summary` text,
   `resolution_path` text,
   `status` enum('New','Assigned','Solving','Solved','Failed') DEFAULT 'New',
+  `resolution_comment` text,
   `assignee_id` int DEFAULT NULL,
   `follower_id` int DEFAULT NULL,
   `deadline` datetime DEFAULT NULL,
@@ -137,8 +143,30 @@ CREATE TABLE `tickets` (
 -- Dumping data for table `tickets`
 --
 
-INSERT INTO `tickets` (`id`, `ticket_no`, `title`, `category`, `summary`, `resolution_path`, `status`, `assignee_id`, `follower_id`, `deadline`, `created_at`, `updated_at`) VALUES
-(24, 'TK-1771510901193', 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 'Failed', 24, 17, '2026-03-06 21:21:00', '2026-02-19 14:21:41', '2026-02-19 15:35:34');
+INSERT INTO `tickets` (`id`, `ticket_no`, `title`, `category`, `summary`, `resolution_path`, `status`, `resolution_comment`, `assignee_id`, `follower_id`, `deadline`, `created_at`, `updated_at`) VALUES
+(24, 'TK-1771510901193', 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 'Failed', NULL, 24, 17, '2026-03-06 21:21:00', '2026-02-19 14:21:41', '2026-02-19 15:35:34'),
+(25, 'TK-1771589621018', 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\'s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 'Assigned', '', 22, 17, '2026-03-04 19:13:00', '2026-02-20 12:13:41', '2026-02-20 13:53:24');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ticket_followers`
+--
+
+CREATE TABLE `ticket_followers` (
+  `id` int NOT NULL,
+  `ticket_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `ticket_followers`
+--
+
+INSERT INTO `ticket_followers` (`id`, `ticket_id`, `user_id`, `created_at`) VALUES
+(0, 25, 25, '2026-02-20 13:34:24'),
+(0, 25, 31, '2026-02-20 13:53:54');
 
 -- --------------------------------------------------------
 
@@ -155,6 +183,15 @@ CREATE TABLE `ticket_history` (
   `performed_by` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `ticket_history`
+--
+
+INSERT INTO `ticket_history` (`id`, `ticket_id`, `action_type`, `old_value`, `new_value`, `performed_by`, `created_at`) VALUES
+(1, 25, 'STATUS_CHANGE', 'New', 'Assigned', 22, '2026-02-20 13:53:24'),
+(2, 25, 'STATUS_CHANGE', 'New', 'Assigned', 22, '2026-02-20 13:53:25'),
+(3, 25, 'STATUS_CHANGE', 'New', 'Assigned', 22, '2026-02-20 13:53:56');
 
 -- --------------------------------------------------------
 
@@ -250,6 +287,7 @@ INSERT INTO `user_skills` (`user_id`, `category_id`) VALUES
 (31, 4),
 (29, 5),
 (32, 5),
+(22, 6),
 (27, 6),
 (31, 6);
 
@@ -341,7 +379,7 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `comments`
 --
 ALTER TABLE `comments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `draft_tickets`
@@ -353,13 +391,13 @@ ALTER TABLE `draft_tickets`
 -- AUTO_INCREMENT for table `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `ticket_history`
 --
 ALTER TABLE `ticket_history`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `users`

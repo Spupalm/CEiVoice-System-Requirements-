@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import AssigneeDashboard from './AssigneeDashboard'; // Add this
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -873,63 +874,77 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
             {renderSidebar()}
             <div className="flex-grow-1 p-4 p-lg-5">
 
-                {/* Editing Views for Admin */}
-                {role === 'admin' && (currentView === 'drafts') && selectedTask ? (
+                {/* 1. ส่วนการแก้ไข (Admin Editing Views) - จะแสดงทับหน้าหลักเมื่อมี SelectedTask */}
+                {role === 'admin' && currentView === 'drafts' && selectedTask ? (
                     renderDraftEditView()
-                ) : (role === 'admin' && currentView === 'users' && selectedTask) ? (
+                ) : role === 'admin' && currentView === 'users' && selectedTask ? (
                     renderUserEditView(selectedTask)
                 ) : (
-                    /* Main Content Area */
+                    /* 2. พื้นที่แสดงเนื้อหาหลัก (Main Content Area) */
                     <div className="mx-auto" style={{ maxWidth: '1100px' }}>
+
+                        {/* Header Section */}
                         <div className="d-flex justify-content-between align-items-center mb-5">
                             <h2 className="fw-bold mb-0">
-                                {/* Dynamic Title based on View */}
                                 {currentView === 'user-requests' ? 'User Requests' :
                                     currentView === 'drafts' ? 'AI Draft Management' :
-                                        currentView === 'track-tickets' ? 'My Ticket Status' : 'Official Tickets'}
+                                        currentView === 'track-tickets' ? 'My Ticket Status' :
+                                            currentView === 'users' ? 'User Management' : 'Official Tickets'}
                             </h2>
                             <button className="btn btn-outline-danger px-4 rounded-pill" onClick={onLogout}>Logout</button>
                         </div>
 
-                        {/* 1. Tracking View for User */}
-                        {role === 'user' && currentView === 'track-tickets' && renderTrackingView()}
+                        {/* --- แสดงเนื้อหาตาม Role และ View --- */}
 
-                        {/* 2. Request Form for User */}
-                        {role === 'user' && currentView === 'user-requests' && (
-                            <form onSubmit={handleSubmitRequest} className="mb-5 p-4 border rounded-4 shadow-sm bg-white">
-                                <div className="mb-3">
-                                    <label className="form-label fw-bold small text-muted">Submit New Request (AI Handled)</label>
-                                    <textarea
-                                        className="form-control border-0 bg-light py-2"
-                                        rows="3"
-                                        placeholder="Describe your issue or what you need help with..."
-                                        value={requestMessage}
-                                        onChange={(e) => setRequestMessage(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <button className="btn btn-primary px-5 py-2 fw-bold shadow-sm rounded-pill w-100" type="submit" disabled={loading}>
-                                    {loading ? 'Processing...' : 'Send Request to AI'}
-                                </button>
-                            </form>
+                        {/* CASE: USER */}
+                        {role === 'user' && (
+                            <>
+                                {currentView === 'track-tickets' && renderTrackingView()}
+                                {currentView === 'user-requests' && (
+                                    <>
+                                        <form onSubmit={handleSubmitRequest} className="mb-5 p-4 border rounded-4 shadow-sm bg-white">
+                                            <div className="mb-3">
+                                                <label className="form-label fw-bold small text-muted">Submit New Request (AI Handled)</label>
+                                                <textarea
+                                                    className="form-control border-0 bg-light py-2"
+                                                    rows="3"
+                                                    placeholder="Describe your issue..."
+                                                    value={requestMessage}
+                                                    onChange={(e) => setRequestMessage(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <button className="btn btn-primary px-5 py-2 fw-bold shadow-sm rounded-pill w-100" type="submit" disabled={loading}>
+                                                {loading ? 'Processing...' : 'Send Request to AI'}
+                                            </button>
+                                        </form>
+                                        {/* รายการคำขอของ User */}
+                                        {viewConfigs['user-requests']?.map(status => renderTaskGroup(status))}
+                                    </>
+                                )}
+                            </>
                         )}
 
-                        {/* 3. Task Groups (Lists) */}
-                        {role === 'admin' ? (
-                            // Admin Lists
-                            viewConfigs[currentView]?.map(status => renderTaskGroup(status))
-                        ) : (
-                            // User Lists (Only show groups if on 'user-requests' view)
-                            currentView === 'user-requests' ? (
-                                viewConfigs['user-requests'].map(status => renderTaskGroup(status))
-                            ) : currentView === 'track-tickets' ? (
-                                null // We already rendered renderTrackingView() above
+                        {/* CASE: ADMIN */}
+                        {role === 'admin' && (
+                            viewConfigs[currentView] ? (
+                                viewConfigs[currentView].map(status => renderTaskGroup(status))
                             ) : (
-                                <div className="text-center py-5">
-                                    <i className="bi bi-lock text-muted display-1"></i>
-                                    <p className="mt-3">Access Denied: Admin Only</p>
-                                </div>
+                                <div className="text-center py-5 text-muted">No configuration for this view.</div>
                             )
+                        )}
+
+                        {/* CASE: ASSIGNEE (Kwan's Section) */}
+                        {role === 'assignee' && (
+                            <AssigneeDashboard userId={userId} API_URL={API_URL} />
+                        )}
+
+                        {/* Security Check: ถ้าไม่ใช่ Admin แต่พยายามเข้าหน้า Admin */}
+                        {role !== 'admin' && (currentView === 'drafts' || currentView === 'users') && (
+                            <div className="text-center py-5">
+                                <i className="bi bi-lock text-muted display-1"></i>
+                                <p className="mt-3 text-muted">Access Denied: Admin Only</p>
+                            </div>
                         )}
                     </div>
                 )}

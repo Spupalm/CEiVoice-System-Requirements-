@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import axios from 'axios';
 import { OAuth2Client } from 'google-auth-library';
 import { generateSupportTicket } from "./services/aiService.js";
+import assigneeRoutes from './assigneeRoutes.js';
 
 const app = express();
 const port = 5001;
@@ -24,6 +25,10 @@ const db = mysql.createConnection({
     database: process.env.database,
     port: process.env.port
 });
+
+// Then, and only then, you can use 'db'
+app.use('/api/assignee', assigneeRoutes(db));
+
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -273,14 +278,15 @@ app.get('/api/users/assignees', (req, res) => {
     });
 });
 
-app.put('/api/todos/:id/assign', (req, res) => {
-    const { id } = req.params;
-    const { assigned_to } = req.body; // รับ ID ของคนที่จะเปลี่ยนไปให้
-
-    const sql = 'UPDATE todo SET assigned_to = ? WHERE id = ?';
-    db.query(sql, [assigned_to === '' ? null : assigned_to, id], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.send({ success: true, message: 'Assignee updated' });
+// Adding this route to your friend's server.js
+app.post('/api/todos', (req, res) => {
+    // We use their 'db' variable instead of your old one
+    const { task, assigned_to } = req.body; 
+    const sql = "INSERT INTO todo (task, assigned_to) VALUES (?, ?)";
+    
+    db.query(sql, [task, assigned_to], (err, result) => {
+        if (err) return res.status(500).json(err);
+        res.json({ success: true, id: result.insertId });
     });
 });
 
