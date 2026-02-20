@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql_db
--- Generation Time: Feb 20, 2026 at 01:54 PM
+-- Generation Time: Feb 20, 2026 at 05:15 PM
 -- Server version: 8.0.44
 -- PHP Version: 8.3.26
 
@@ -206,34 +206,37 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  `role` enum('user','assignee','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'user'
+  `role` enum('user','assignee','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'user',
+  `is_approved` tinyint(1) DEFAULT '1' COMMENT '0=Pending, 1=Approved'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `username`, `password`, `profile_image`, `created_at`, `role`) VALUES
-(5, 'Watcharathorn Krachangmon', 'watchie', '$2b$10$1M57XIJGo/yKlL1wA86a1OidTNYZ138g6bASKg9bNCvwFy2LtCRi2', '6287e8e1475892c60a8fb3fd28173102', '2026-01-29 17:06:56', 'admin'),
-(11, 'Watcharathorn Krachangmon (1380)', '67011380@kmitl.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIXG3634ZtSeg1dUsJUZ1CKb8UyC6Z9qrCQ5AT_N8g9SZiCPQ=s96-c', '2026-01-31 10:29:57', 'user'),
-(12, 'watcharathorn krachangmon', 'watcharathorn2549@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocL3hyurCaMfLDwPHAf-01qiMpRsZl63__qtY1Ueol-Ci3Y31mg=s96-c', '2026-01-31 10:30:05', 'user'),
-(14, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-01-31 13:50:09', 'user'),
-(16, 'Kittisak Chalongkulwat', 'kenmuay', '$2b$10$q/tXFg2pIWDT9zAINGYV5OX8p50QBwhKowg/d1Esr5WMH9.V26fzi', 'd609d557c1a0a62e8f020a8c0ecace86', '2026-01-31 15:00:35', 'user'),
-(17, 'Rick Astley', 'rickroll', '$2b$10$3zF/J19dONmjAY6CwMs.zONZR/4ePuA4SO.nf0DdvQ1BXuJn5VxXC', 'dd4eaa7dbbae294ecd86166bcf294c97', '2026-02-02 15:44:33', 'user'),
-(18, 'Tworockpuzzle', 'tworock', '$2b$10$kolJT7anlg06DOzxb9mYqe5mR13IQJAChdlpLiqXczhbhWw5rxES2', '96021c4ad9076047ea8f657ac066d432', '2026-02-04 09:29:23', 'user'),
-(20, 'ควยชิบหาย', 'ควย', '$2b$10$/yPInfm0cQ6jCi2/mG2xBeRlXFNpfGJbT5ckcYckdsYw5hzkqHXaq', '4894750d14c0b613eea2614c46e59ce3', '2026-02-08 19:24:55', 'user'),
-(22, 'Worawalun', 'palmy', '$2b$10$bl9xEvO30D.jMY.f/MrgG.fl6l0dMQNCYEEe6HyTmPgS3j3Ube.N6', '56d572a59eb430a0afdeaefbac27a538', '2026-02-09 11:50:20', 'assignee'),
-(23, 'adminTest', 'admin1', '$2b$10$o20HDVcoHs8F2mE7wUs8dOG97pLJfS95dIvX.cB/9n0G9HFhBlyGK', 'bf0be8f4468b607dd83f2e01a49326d2', '2026-02-09 13:22:13', 'admin'),
-(24, 'assigneeTest(network)', 'network', '$2b$10$Jb04hp6F6pq8anRjHsLMYuHi/Te7E3npMVYmnBw.ujlQx.8YfXSy.', '1771062429427-220163703-140511293_p0_master1200.jpg', '2026-02-14 09:47:09', 'user'),
-(25, 'assigneeTest(ITSupport)', 'ITsupport', '$2b$10$x3ff9cfnPUFUjYrbGPFzO.bW0hDPu9L1cgTBpH325H/pXQE73MyEO', '1771236740453-671959002-Screenshot 2026-02-15 211331.png', '2026-02-16 10:12:20', 'assignee'),
-(26, 'assigneeTest(TeachSupport)', 'TeachSupport', '$2b$10$mZsm5RYQMBjI7Q8PBM3hLeG2haqYOJjrUXNLKzd6BxyomgdZbnZeu', '1771236816401-398122773-68498.jpg', '2026-02-16 10:13:36', 'assignee'),
-(27, 'assigneeTest(HRTeam)', 'HRTeam', '$2b$10$xDE7lBZg5E/Cf2.S4IWlsOoam63wIj6pSO93s/oqSsaVoLXG.FpwC', '1771236856794-140663019-68498.jpg', '2026-02-16 10:14:17', 'assignee'),
-(28, 'assigneeTest(Account&AccessTeam)', 'AccountTeam', '$2b$10$l2mkN5lUc4OC51buxs2b1.tQkJKkEtMuICCGW9lPa.oDZ3tB78qq6', '1771236905953-858629775-68328.jpg', '2026-02-16 10:15:06', 'assignee'),
-(29, 'assigneeTest(Finance&Billing team)', 'FinanceTeam', '$2b$10$uIWtmZz5Kr6GlEe8846W.uzs4hNpDxE76qU62zz3gr4S95S7N1sIW', '1771236957241-212946747-67792.jpg', '2026-02-16 10:15:57', 'assignee'),
-(30, 'dwdwdwdwd dwdwdwdwd', 'gaemefefelmfe@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocJDLWpp2ttQKDOKVvbiLqJEXuE0W_LoUdSZ1UkLEzQNLzM4NA=s96-c', '2026-02-16 16:08:13', 'user'),
-(31, 'test2team', '2team', '$2b$10$2gAubtDEp8P/Gpfl5r/LRuvWbj1Mys/HXOnnXe.lfXfnJpDiGRlc.', '1771349622060-886226581-68497.jpg', '2026-02-17 17:33:42', 'assignee'),
-(32, 'checkphoto', 'check', '$2b$10$V6WrweWPpNb5WSRjLl2LO.8Agj4bVxflfbiic06ViHLIHkRYTA2Na', '1771424529073-47857953-68270.jpg', '2026-02-18 14:22:09', 'assignee'),
-(33, 'เหี้ยไรสัส', 'เหี้ย', '$2b$10$RbzMwlKrtPc8mdncvqkXVeMf94LeRTcH57CEC6W2Ai.QHrHB17JUi', '7ebb61a3f6e43967b65989efc379c35a.jpg', '2026-02-18 14:46:12', 'user');
+INSERT INTO `users` (`id`, `full_name`, `username`, `password`, `profile_image`, `created_at`, `role`, `is_approved`) VALUES
+(5, 'Watcharathorn Krachangmon', 'watchie', '$2b$10$1M57XIJGo/yKlL1wA86a1OidTNYZ138g6bASKg9bNCvwFy2LtCRi2', '6287e8e1475892c60a8fb3fd28173102', '2026-01-29 17:06:56', 'admin', 1),
+(11, 'Watcharathorn Krachangmon (1380)', '67011380@kmitl.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIXG3634ZtSeg1dUsJUZ1CKb8UyC6Z9qrCQ5AT_N8g9SZiCPQ=s96-c', '2026-01-31 10:29:57', 'user', 1),
+(12, 'watcharathorn krachangmon', 'watcharathorn2549@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocL3hyurCaMfLDwPHAf-01qiMpRsZl63__qtY1Ueol-Ci3Y31mg=s96-c', '2026-01-31 10:30:05', 'user', 1),
+(14, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-01-31 13:50:09', 'user', 1),
+(16, 'Kittisak Chalongkulwat', 'kenmuay', '$2b$10$q/tXFg2pIWDT9zAINGYV5OX8p50QBwhKowg/d1Esr5WMH9.V26fzi', 'd609d557c1a0a62e8f020a8c0ecace86', '2026-01-31 15:00:35', 'user', 1),
+(17, 'Rick Astley', 'rickroll', '$2b$10$3zF/J19dONmjAY6CwMs.zONZR/4ePuA4SO.nf0DdvQ1BXuJn5VxXC', 'dd4eaa7dbbae294ecd86166bcf294c97', '2026-02-02 15:44:33', 'user', 1),
+(18, 'Tworockpuzzle', 'tworock', '$2b$10$kolJT7anlg06DOzxb9mYqe5mR13IQJAChdlpLiqXczhbhWw5rxES2', '96021c4ad9076047ea8f657ac066d432', '2026-02-04 09:29:23', 'user', 1),
+(20, 'ควยชิบหาย', 'ควย', '$2b$10$/yPInfm0cQ6jCi2/mG2xBeRlXFNpfGJbT5ckcYckdsYw5hzkqHXaq', '4894750d14c0b613eea2614c46e59ce3', '2026-02-08 19:24:55', 'user', 1),
+(22, 'Worawalun', 'palmy', '$2b$10$bl9xEvO30D.jMY.f/MrgG.fl6l0dMQNCYEEe6HyTmPgS3j3Ube.N6', '56d572a59eb430a0afdeaefbac27a538', '2026-02-09 11:50:20', 'assignee', 1),
+(23, 'adminTest', 'admin1', '$2b$10$o20HDVcoHs8F2mE7wUs8dOG97pLJfS95dIvX.cB/9n0G9HFhBlyGK', 'bf0be8f4468b607dd83f2e01a49326d2', '2026-02-09 13:22:13', 'admin', 1),
+(24, 'assigneeTest(network)', 'network', '$2b$10$Jb04hp6F6pq8anRjHsLMYuHi/Te7E3npMVYmnBw.ujlQx.8YfXSy.', '1771062429427-220163703-140511293_p0_master1200.jpg', '2026-02-14 09:47:09', 'user', 1),
+(25, 'assigneeTest(ITSupport)', 'ITsupport', '$2b$10$x3ff9cfnPUFUjYrbGPFzO.bW0hDPu9L1cgTBpH325H/pXQE73MyEO', '1771236740453-671959002-Screenshot 2026-02-15 211331.png', '2026-02-16 10:12:20', 'assignee', 1),
+(26, 'assigneeTest(TeachSupport)', 'TeachSupport', '$2b$10$mZsm5RYQMBjI7Q8PBM3hLeG2haqYOJjrUXNLKzd6BxyomgdZbnZeu', '1771236816401-398122773-68498.jpg', '2026-02-16 10:13:36', 'assignee', 1),
+(27, 'assigneeTest(HRTeam)', 'HRTeam', '$2b$10$xDE7lBZg5E/Cf2.S4IWlsOoam63wIj6pSO93s/oqSsaVoLXG.FpwC', '1771236856794-140663019-68498.jpg', '2026-02-16 10:14:17', 'assignee', 1),
+(28, 'assigneeTest(Account&AccessTeam)', 'AccountTeam', '$2b$10$l2mkN5lUc4OC51buxs2b1.tQkJKkEtMuICCGW9lPa.oDZ3tB78qq6', '1771236905953-858629775-68328.jpg', '2026-02-16 10:15:06', 'assignee', 1),
+(29, 'assigneeTest(Finance&Billing team)', 'FinanceTeam', '$2b$10$uIWtmZz5Kr6GlEe8846W.uzs4hNpDxE76qU62zz3gr4S95S7N1sIW', '1771236957241-212946747-67792.jpg', '2026-02-16 10:15:57', 'assignee', 1),
+(30, 'dwdwdwdwd dwdwdwdwd', 'gaemefefelmfe@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocJDLWpp2ttQKDOKVvbiLqJEXuE0W_LoUdSZ1UkLEzQNLzM4NA=s96-c', '2026-02-16 16:08:13', 'user', 1),
+(31, 'test2team', '2team', '$2b$10$2gAubtDEp8P/Gpfl5r/LRuvWbj1Mys/HXOnnXe.lfXfnJpDiGRlc.', '1771349622060-886226581-68497.jpg', '2026-02-17 17:33:42', 'assignee', 1),
+(32, 'checkphoto', 'check', '$2b$10$V6WrweWPpNb5WSRjLl2LO.8Agj4bVxflfbiic06ViHLIHkRYTA2Na', '1771424529073-47857953-68270.jpg', '2026-02-18 14:22:09', 'assignee', 1),
+(33, 'เหี้ยไรสัส', 'เหี้ย', '$2b$10$RbzMwlKrtPc8mdncvqkXVeMf94LeRTcH57CEC6W2Ai.QHrHB17JUi', '7ebb61a3f6e43967b65989efc379c35a.jpg', '2026-02-18 14:46:12', 'user', 1),
+(34, 'testapproveassignee', 'approve', '$2b$10$rVANSyYoDVnKyjWZzjCLMOn9FmBPgln/FhYTEi6Sfm6H9NLgUhVzy', '1771603119444-709374598-69061.jpg', '2026-02-20 15:58:39', 'assignee', 1),
+(35, 'testdwdw', 'we', '$2b$10$rfKhMY3vg2DQqBdenbLRXOQtRFvH2SGobVdSOEoHSHQjlEEPIf25a', '1771605993621-65469953-69021.jpg', '2026-02-20 16:46:33', 'assignee', 0);
 
 -- --------------------------------------------------------
 
@@ -282,11 +285,16 @@ INSERT INTO `user_skills` (`user_id`, `category_id`) VALUES
 (25, 1),
 (31, 1),
 (26, 2),
+(34, 2),
 (22, 3),
 (28, 4),
 (31, 4),
+(34, 4),
+(35, 4),
 (29, 5),
 (32, 5),
+(34, 5),
+(35, 5),
 (22, 6),
 (27, 6),
 (31, 6);
@@ -403,7 +411,7 @@ ALTER TABLE `ticket_history`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `user_requests`
