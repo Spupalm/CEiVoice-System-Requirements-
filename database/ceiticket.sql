@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql_db
--- Generation Time: Feb 14, 2026 at 11:23 AM
+-- Generation Time: Feb 19, 2026 at 09:18 PM
 -- Server version: 8.0.44
 -- PHP Version: 8.3.26
 
@@ -20,6 +20,8 @@ SET time_zone = "+00:00";
 --
 -- Database: `ceidb`
 --
+CREATE DATABASE IF NOT EXISTS `ceidb` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE `ceidb`;
 
 -- --------------------------------------------------------
 
@@ -72,6 +74,14 @@ CREATE TABLE `draft_request_mapping` (
   `request_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+--
+-- Dumping data for table `draft_request_mapping`
+--
+
+INSERT INTO `draft_request_mapping` (`draft_id`, `request_id`) VALUES
+(35, 34),
+(36, 36);
+
 -- --------------------------------------------------------
 
 --
@@ -98,18 +108,9 @@ CREATE TABLE `draft_tickets` (
 -- Dumping data for table `draft_tickets`
 --
 
-
--- --------------------------------------------------------
-
---
--- Table structure for table `task_assignments`
---
-
-CREATE TABLE `task_assignments` (
-  `id` int NOT NULL,
-  `todo_id` int NOT NULL,
-  `user_id` int NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO `draft_tickets` (`id`, `title`, `category`, `summary`, `resolution_path`, `suggested_assignees`, `assigned_to`, `deadline`, `status`, `ai_suggested_merge_id`, `created_by_ai`, `created_at`, `updated_at`) VALUES
+(35, 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 1, NULL, NULL, 'Submitted', NULL, 1, '2026-02-19 12:29:52', '2026-02-19 15:35:34'),
+(36, 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\'s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 1, 25, NULL, 'Draft', NULL, 1, '2026-02-19 12:34:48', '2026-02-19 14:20:18'");
 
 -- --------------------------------------------------------
 
@@ -126,10 +127,18 @@ CREATE TABLE `tickets` (
   `resolution_path` text,
   `status` enum('New','Assigned','Solving','Solved','Failed') DEFAULT 'New',
   `assignee_id` int DEFAULT NULL,
+  `follower_id` int DEFAULT NULL,
   `deadline` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `tickets`
+--
+
+INSERT INTO `tickets` (`id`, `ticket_no`, `title`, `category`, `summary`, `resolution_path`, `status`, `assignee_id`, `follower_id`, `deadline`, `created_at`, `updated_at`) VALUES
+(24, 'TK-1771510901193', 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 'Failed', 24, 17, '2026-03-06 21:21:00', '2026-02-19 14:21:41', '2026-02-19 15:35:34');
 
 -- --------------------------------------------------------
 
@@ -178,7 +187,16 @@ INSERT INTO `users` (`id`, `full_name`, `username`, `password`, `profile_image`,
 (20, 'ควยชิบหาย', 'ควย', '$2b$10$/yPInfm0cQ6jCi2/mG2xBeRlXFNpfGJbT5ckcYckdsYw5hzkqHXaq', '4894750d14c0b613eea2614c46e59ce3', '2026-02-08 19:24:55', 'user'),
 (22, 'Worawalun', 'palmy', '$2b$10$bl9xEvO30D.jMY.f/MrgG.fl6l0dMQNCYEEe6HyTmPgS3j3Ube.N6', '56d572a59eb430a0afdeaefbac27a538', '2026-02-09 11:50:20', 'assignee'),
 (23, 'adminTest', 'admin1', '$2b$10$o20HDVcoHs8F2mE7wUs8dOG97pLJfS95dIvX.cB/9n0G9HFhBlyGK', 'bf0be8f4468b607dd83f2e01a49326d2', '2026-02-09 13:22:13', 'admin'),
-(24, 'assigneeTest(network)', 'network', '$2b$10$Jb04hp6F6pq8anRjHsLMYuHi/Te7E3npMVYmnBw.ujlQx.8YfXSy.', '1771062429427-220163703-140511293_p0_master1200.jpg', '2026-02-14 09:47:09', 'assignee');
+(24, 'assigneeTest(network)', 'network', '$2b$10$Jb04hp6F6pq8anRjHsLMYuHi/Te7E3npMVYmnBw.ujlQx.8YfXSy.', '1771062429427-220163703-140511293_p0_master1200.jpg', '2026-02-14 09:47:09', 'user'),
+(25, 'assigneeTest(ITSupport)', 'ITsupport', '$2b$10$x3ff9cfnPUFUjYrbGPFzO.bW0hDPu9L1cgTBpH325H/pXQE73MyEO', '1771236740453-671959002-Screenshot 2026-02-15 211331.png', '2026-02-16 10:12:20', 'assignee'),
+(26, 'assigneeTest(TeachSupport)', 'TeachSupport', '$2b$10$mZsm5RYQMBjI7Q8PBM3hLeG2haqYOJjrUXNLKzd6BxyomgdZbnZeu', '1771236816401-398122773-68498.jpg', '2026-02-16 10:13:36', 'assignee'),
+(27, 'assigneeTest(HRTeam)', 'HRTeam', '$2b$10$xDE7lBZg5E/Cf2.S4IWlsOoam63wIj6pSO93s/oqSsaVoLXG.FpwC', '1771236856794-140663019-68498.jpg', '2026-02-16 10:14:17', 'assignee'),
+(28, 'assigneeTest(Account&AccessTeam)', 'AccountTeam', '$2b$10$l2mkN5lUc4OC51buxs2b1.tQkJKkEtMuICCGW9lPa.oDZ3tB78qq6', '1771236905953-858629775-68328.jpg', '2026-02-16 10:15:06', 'assignee'),
+(29, 'assigneeTest(Finance&Billing team)', 'FinanceTeam', '$2b$10$uIWtmZz5Kr6GlEe8846W.uzs4hNpDxE76qU62zz3gr4S95S7N1sIW', '1771236957241-212946747-67792.jpg', '2026-02-16 10:15:57', 'assignee'),
+(30, 'dwdwdwdwd dwdwdwdwd', 'gaemefefelmfe@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocJDLWpp2ttQKDOKVvbiLqJEXuE0W_LoUdSZ1UkLEzQNLzM4NA=s96-c', '2026-02-16 16:08:13', 'user'),
+(31, 'test2team', '2team', '$2b$10$2gAubtDEp8P/Gpfl5r/LRuvWbj1Mys/HXOnnXe.lfXfnJpDiGRlc.', '1771349622060-886226581-68497.jpg', '2026-02-17 17:33:42', 'assignee'),
+(32, 'checkphoto', 'check', '$2b$10$V6WrweWPpNb5WSRjLl2LO.8Agj4bVxflfbiic06ViHLIHkRYTA2Na', '1771424529073-47857953-68270.jpg', '2026-02-18 14:22:09', 'assignee'),
+(33, 'เหี้ยไรสัส', 'เหี้ย', '$2b$10$RbzMwlKrtPc8mdncvqkXVeMf94LeRTcH57CEC6W2Ai.QHrHB17JUi', '7ebb61a3f6e43967b65989efc379c35a.jpg', '2026-02-18 14:46:12', 'user');
 
 -- --------------------------------------------------------
 
@@ -193,17 +211,20 @@ CREATE TABLE `user_requests` (
   `message` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `status` enum('received','draft','ticket') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'received',
-  `draft_ticket_id` int DEFAULT NULL
+  `draft_ticket_id` int DEFAULT NULL,
+  `tracking_token_hash` char(64) DEFAULT NULL,
+  `tracking_token_last4` char(4) DEFAULT NULL,
+  `tracking_token_expires_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `user_requests`
 --
 
-INSERT INTO `user_requests` (`id`, `user_id`, `user_email`, `message`, `created_at`, `status`, `draft_ticket_id`) VALUES
-(8, 16, 'kenmuay', 'Cannot Log In to Account', '2026-02-12 18:11:53', 'draft', 5),
-(9, 17, 'rickroll', 'can\'t connect to kmitl network', '2026-02-14 11:18:39', 'draft', NULL),
-(10, 17, 'rickroll', 'can\'t use kmitl neetwork', '2026-02-14 11:20:35', 'draft', 7);
+INSERT INTO `user_requests` (`id`, `user_id`, `user_email`, `message`, `created_at`, `status`, `draft_ticket_id`, `tracking_token_hash`, `tracking_token_last4`, `tracking_token_expires_at`) VALUES
+(34, 17, 'rickroll', 'my computer is so hot', '2026-02-18 16:01:41', 'draft', NULL, NULL, NULL, NULL),
+(35, 17, 'rickroll', 'my computer temperature is high', '2026-02-18 16:02:35', 'draft', NULL, NULL, NULL, NULL),
+(36, 17, 'rickroll', 'i cannot connect to api server', '2026-02-19 12:29:46', 'ticket', 36, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -221,7 +242,16 @@ CREATE TABLE `user_skills` (
 --
 
 INSERT INTO `user_skills` (`user_id`, `category_id`) VALUES
-(24, 3);
+(25, 1),
+(31, 1),
+(26, 2),
+(22, 3),
+(28, 4),
+(31, 4),
+(29, 5),
+(32, 5),
+(27, 6),
+(31, 6);
 
 --
 -- Indexes for dumped tables
@@ -255,15 +285,8 @@ ALTER TABLE `draft_request_mapping`
 ALTER TABLE `draft_tickets`
   ADD PRIMARY KEY (`id`),
   ADD KEY `assigned_to` (`assigned_to`),
-  ADD KEY `fk_suggested_category` (`suggested_assignees`);
-
---
--- Indexes for table `task_assignments`
---
-ALTER TABLE `task_assignments`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `todo_id` (`todo_id`),
-  ADD KEY `user_id` (`user_id`);
+  ADD KEY `fk_suggested_category` (`suggested_assignees`),
+  ADD KEY `fk_ai_suggested_merge` (`ai_suggested_merge_id`);
 
 --
 -- Indexes for table `tickets`
@@ -271,7 +294,8 @@ ALTER TABLE `task_assignments`
 ALTER TABLE `tickets`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ticket_no` (`ticket_no`),
-  ADD KEY `assignee_id` (`assignee_id`);
+  ADD KEY `assignee_id` (`assignee_id`),
+  ADD KEY `fk_ticket_follower` (`follower_id`);
 
 --
 -- Indexes for table `ticket_history`
@@ -323,19 +347,13 @@ ALTER TABLE `comments`
 -- AUTO_INCREMENT for table `draft_tickets`
 --
 ALTER TABLE `draft_tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT for table `task_assignments`
---
-ALTER TABLE `task_assignments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT for table `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `ticket_history`
@@ -347,13 +365,13 @@ ALTER TABLE `ticket_history`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `user_requests`
 --
 ALTER TABLE `user_requests`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- Constraints for dumped tables
@@ -378,19 +396,14 @@ ALTER TABLE `draft_request_mapping`
 --
 ALTER TABLE `draft_tickets`
   ADD CONSTRAINT `draft_tickets_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_ai_suggested_merge` FOREIGN KEY (`ai_suggested_merge_id`) REFERENCES `draft_tickets` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_suggested_category` FOREIGN KEY (`suggested_assignees`) REFERENCES `categories` (`id`);
-
---
--- Constraints for table `task_assignments`
---
-ALTER TABLE `task_assignments`
-  ADD CONSTRAINT `task_assignments_ibfk_1` FOREIGN KEY (`todo_id`) REFERENCES `todo` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `task_assignments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `tickets`
 --
 ALTER TABLE `tickets`
+  ADD CONSTRAINT `fk_ticket_follower` FOREIGN KEY (`follower_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `tickets_ibfk_1` FOREIGN KEY (`assignee_id`) REFERENCES `users` (`id`);
 
 --

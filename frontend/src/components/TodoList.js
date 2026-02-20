@@ -90,11 +90,11 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                 body: JSON.stringify({
                     draft_id: draft.id,
                     title: draft.title,
-                    // แก้จุดนี้: ให้ดึงจาก ai_category_name ที่เรา SELECT มาจาก Backend
                     category: draft.ai_category_name || draft.category,
                     summary: draft.summary,
                     resolution_path: draft.resolution_path,
                     assignee_id: draft.assigned_to,
+                    userRequestId: draft.linked_requests && draft.linked_requests.length > 0 ? draft.linked_requests[0].id : null,
                     deadline: draft.deadline
                 })
             });
@@ -283,6 +283,36 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         }
     };
 
+    const handleUnlinkRequest = async (requestId, currentDraftId) => {
+        if (!window.confirm(`Do you want to unlink Request #${requestId} and create a separate draft?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/admin/unlink-request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requestId, currentDraftId })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // แก้ไขตรงนี้: จาก setShowEditModal(false) เป็น setSelectedTask(null)
+                setSelectedTask(null);
+
+                // โหลดข้อมูลในตารางใหม่
+                fetchAdminData();
+
+                alert(`Request #${requestId} has been unlinked to Draft #${data.newDraftId}`);
+            } else {
+                alert(data.error || "Failed to unlink request");
+            }
+        } catch (error) {
+            console.error("Error unlinking request:", error);
+            alert("An error occurred while unlinking.");
+        }
+    };
     const handleUpdateDraft = async (draftId, updatedData) => {
         try {
             const response = await fetch(`${API_URL}/admin/draft-tickets/${draftId}`, {
@@ -452,6 +482,47 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                             style={{ fontSize: '0.9rem', lineHeight: '1.5' }}
                         />
                     </div>
+
+                    {/* ส่วน Linked User Requests พร้อมปุ่ม Unlink */}
+                    <div className="d-flex flex-column gap-2">
+                        {selectedTask.linked_requests && selectedTask.linked_requests.length > 0 ? (
+                            selectedTask.linked_requests.map((req, idx) => (
+                                <div key={idx} className="p-3 bg-light border rounded shadow-xs d-flex justify-content-between align-items-center">
+                                    <div style={{ flex: 1 }}>
+                                        <div className="d-flex align-items-center gap-2 mb-1">
+                                            <span className="badge bg-white text-dark border small" style={{ fontSize: '0.7rem' }}>
+                                                Request #{req.id}
+                                            </span>
+                                            <small className="text-muted" style={{ fontSize: '0.8rem' }}>{req.user_email}</small>
+                                        </div>
+                                        <p className="mb-0 text-dark" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                            "{req.message}"
+                                        </p>
+                                    </div>
+
+                                    {/* ปุ่ม Unlink ทรงเหลี่ยมมน */}
+                                    {selectedTask.linked_requests.length > 1 && (
+                                        <button
+                                            className="btn btn-outline-danger d-flex align-items-center justify-content-center shadow-sm p-0"
+                                            style={{
+                                                width: '38px',
+                                                height: '38px',
+                                                borderRadius: '10px',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                            title="Unlink this request into a new ticket"
+                                            onClick={() => handleUnlinkRequest(req.id, selectedTask.id)}
+                                        >
+                                            <i className="bi bi-scissors-italic fs-5"></i>
+                                        </button>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-muted small italic text-center py-3">No linked requests.</p>
+                        )}
+                    </div>
+
                     <div className="border p-3 rounded-3 bg-white shadow-sm d-flex flex-column" style={{ minHeight: '400px', height: '100%' }}>
                         <h6 className="fw-bold small text-muted text-uppercase mb-3 border-bottom pb-2">
                             <i className="bi bi-list-check me-2"></i>Resolution Path
@@ -466,7 +537,6 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                                 style={{ width: '24px', height: '24px', minWidth: '24px', marginTop: '6px' }}>
                                                 {index + 1}
                                             </span>
-                                            {/* ใช้ Textarea เพื่อให้แก้ไขข้อความได้ */}
                                             <textarea
                                                 className="form-control form-control-sm bg-light border-0"
                                                 rows="3"
@@ -492,7 +562,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                 </div>
             </div>
 
-            {/* Footer: ปุ่มจัดการ (Save, Merge, Approve) */}
+            {/* Footer: ปุ่มจัดการ */}
             <div className="d-flex justify-content-between align-items-center mt-5 pt-3 border-top">
                 <button className="btn btn-outline-dark px-4" onClick={() => {/* Logic สำหรับ Merge */ }}>
                     <i className="bi bi-layers me-2"></i>Merge
@@ -503,7 +573,6 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                         <i className="bi bi-save me-2"></i>Save Draft
                     </button>
 
-                    {/* ปุ่ม Approve สีส้ม (Submit as New Ticket) */}
                     <button
                         className="btn px-4 py-2 text-white fw-bold shadow-sm"
                         style={{ backgroundColor: '#ff6b00', borderRadius: '8px' }}
@@ -561,11 +630,21 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
 
                     <div className="mb-3">
                         <label className="form-label small fw-bold text-muted">ROLE</label>
-                        <select className="form-select form-select-sm" defaultValue={user.role}>
+                        <select
+                            className="form-select form-select-sm"
+                            defaultValue={user.role}
+                            disabled={user.role === 'admin'}
+                            onChange={(e) => setSelectedTask({ ...selectedTask, role: e.target.value })}
+                        >
                             <option value="user">User</option>
                             <option value="assignee">Assignee</option>
                             <option value="admin">Admin</option>
                         </select>
+                        {user.role === 'admin' && (
+                            <small className="text-danger" style={{ fontSize: '0.7rem' }}>
+                                * Administrator roles cannot be changed for security reasons.
+                            </small>
+                        )}
                     </div>
 
                     <div className="p-2 bg-light rounded border">
@@ -658,7 +737,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         const filteredItems = currentView === 'users'
             ? dataSource.filter(u => u.role === statusLabel)
             : dataSource.filter(item => item.status === statusLabel);
-        
+
         return (
             <div key={statusLabel} className="mb-5 shadow-sm rounded border">
                 {/* Header ส่วนหัวกลุ่มงาน */}
@@ -703,7 +782,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                         <tbody>
                             {filteredItems.map(item => {
                                 const isSelected = selectedDraftIds.includes(item.id);
-                                console.log("Rendering item:", item, "Selected IDs:", selectedDraftIds);
+                                //console.log("Rendering item:", item, "Selected IDs:", selectedDraftIds);
                                 return (
                                     <tr
                                         key={item.id}
@@ -750,7 +829,21 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                         ) : (
                                             <>
                                                 <td>
-                                                    <div className="fw-bold text-dark">{item.title || item.message}</div>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <div className="fw-bold text-dark">{item.title || item.message}</div>
+
+                                                        {/* แสดง Badge จำนวน Request ที่ถูก Merge เข้ามา (เฉพาะหน้า Drafts) */}
+                                                        {currentView === 'drafts' && item.linked_requests?.length > 1 && (
+                                                            <span
+                                                                className="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle"
+                                                                title={`Merged from ${item.linked_requests.length} requests`}
+                                                                style={{ fontSize: '0.7rem' }}
+                                                            >
+                                                                <i className="bi bi-stack me-1"></i>
+                                                                {item.linked_requests.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {currentView === 'drafts' && <div className="small text-muted text-truncate" style={{ maxWidth: '250px' }}>{item.summary}</div>}
                                                 </td>
                                                 {currentView === 'drafts' && (
@@ -760,9 +853,9 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                                         <td><div className="small text-dark"><i className="bi bi-person me-1"></i>{item.ai_suggested_merge_id || <span className="text-danger">Not Assigned</span>}</div></td>
                                                     </>
                                                 )}
-                                                
+
                                                 <td><span className={`badge ${item.status === 'New' ? 'bg-success' : 'bg-secondary'}`}>{currentView === 'drafts' ? formatDate(item.deadline) : item.status}</span></td>
-                                                
+
                                             </>
                                         )}
                                     </tr>
