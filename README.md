@@ -62,6 +62,7 @@ install in backend:
 - npm install axios
 - npm install google-auth-library
 - npm install nodemailer
+  
 install in frontend:
 - npm install
 - npm install @react-oauth/google
