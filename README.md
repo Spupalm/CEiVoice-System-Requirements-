@@ -52,20 +52,7 @@ By automating categorization and assignment, CEiVoice enables administrators and
 # Setup
 ```
 create .env file in backend and frontend(.env file)
-.env (backend)
-host=localhost
-user=root
-password=CEiAdmin0
-database=ceidb
-RECAPTCHA_SECRET_KEY=6LeQBlssAAAAAA1WUVxPRNRIJ0DvJEoo1F6rALBR
-GOOGLE_CLIENT_ID = 618947792486-r6e8k3bib6dgm47c4i5di5ekvasc3r08.apps.googleusercontent.com
-api_key=AIzaSyD7PDEFM3PSnfRt-g9OsGSuHmtwo7WXklw
 
-EMAIL_USER=ceivoice.team@gmail.com
-EMAIL_PASS=tuuc kcjy qpyl dwgs
---------------------------------------------------------------
-.env (frontend)
-REACT_APP_API_URL=http://localhost:5001/api
 ```
 
 install in backend:
