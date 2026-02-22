@@ -8,6 +8,7 @@ import axios from 'axios';
 import { OAuth2Client } from 'google-auth-library';
 import { generateSupportTicket } from "./services/aiService.js";
 import assigneeRoutes from './assigneeRoutes.js';
+import { sendNotificationEmail } from './services/emailService.js';
 
 const app = express();
 const port = 5001;
@@ -134,6 +135,7 @@ app.post('/api/google-login', async (req, res) => {
 
         // 2. Check if user exists in your MySQL DB
         // Using email or a specific 'google_id' column is recommended
+        
         db.query(
             'SELECT * FROM users WHERE username = ? OR username = ?',
             [email, googleId],
@@ -152,9 +154,10 @@ app.post('/api/google-login', async (req, res) => {
                                 success: true,
                                 user: {
                                     id: user.id,
-                                    username: user.full_name,
+                                    username: user.username,
                                     fullName: user.full_name,
-                                    profileImage: profileImage // ส่ง URL รูปกลับไปให้ Frontend
+                                    profileImage: profileImage, // ส่ง URL รูปกลับไปให้ Frontend
+                                    role: user.role// 🟢 เพิ่มบรรทัดนี้! บัญชี Google สร้างใหม่จะได้ Role เป็น user เสมอ
                                 }
                             });
                         }
@@ -328,6 +331,35 @@ app.post('/api/user-requests', (req, res) => {
         }
 
         const requestId = result.insertId;
+
+        // 🟢 แทนที่โค้ดส่งอีเมลเดิมด้วยชุดนี้
+        const receivedHtmlTemplate = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+            </div>
+            <div style="padding: 30px; background-color: #ffffff;">
+                <p style="font-size: 16px; color: #333;">Hello,</p>
+                <p style="font-size: 16px; color: #333;">We have received your support request.</p>
+                
+                <div style="background-color: #fff8e1; border-left: 5px solid #ffc107; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                    <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: #d39e00;">⏳ Waiting for Review</span></h3>
+                    <hr style="border: 0; border-top: 1px solid #ffe082; margin: 15px 0;">
+                    <p style="margin-bottom: 5px; color: #555; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;"><strong>Issue Details:</strong></p>
+                    <p style="margin-top: 0; color: #333; font-size: 16px; font-style: italic;">"${message}"</p>
+                </div>
+                
+                <p style="font-size: 15px; color: #666;">We will notify you once an assignee reviews and resolves your request.</p>
+                <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
+            </div>
+        </div>
+        `;
+
+        sendNotificationEmail(
+            user_email,
+            "CEiVoice: Request Received",
+            receivedHtmlTemplate
+        );
 
         try {
             // 1. ดึงรายชื่อ Assignee ทั้งหมดพร้อมทักษะ (Expertise)

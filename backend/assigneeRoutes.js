@@ -1,4 +1,5 @@
 import express from 'express';
+import { sendNotificationEmail } from './services/emailService.js';
 const router = express.Router();
 
 export default (db) => {
@@ -122,6 +123,71 @@ if (old_assignee_id && parseInt(old_assignee_id) !== parseInt(assignee_id)) {
     // FIX: Remove `User ` prefix
     db.query(reassignHistorySql, [id, old_assignee_id, assignee_id, performed_by]);
 }
+
+// 🟢 ตรวจสอบถ้าสถานะคือ Solved ให้ส่งอีเมล
+        if (status === 'Solved') {
+            // คำสั่ง SQL ปรับปรุงใหม่: ดึงข้อความปัญหาเดิม (original_message) และชื่อหัวข้อ (ticket_title) มาด้วย
+            const getEmailSql = `
+                SELECT 
+                    COALESCE(ur.user_email, ur2.user_email) AS user_email,
+                    COALESCE(ur.message, ur2.message) AS original_message,
+                    t.title AS ticket_title,
+                    u.full_name AS assignee_name
+                FROM tickets t
+                LEFT JOIN users u ON t.assignee_id = u.id
+                LEFT JOIN user_requests ur ON ur.user_id = t.follower_id
+                LEFT JOIN draft_tickets dt ON t.title = dt.title
+                LEFT JOIN draft_request_mapping drm ON dt.id = drm.draft_id
+                LEFT JOIN user_requests ur2 ON drm.request_id = ur2.id
+                WHERE t.id = ?
+                ORDER BY ur.created_at DESC
+                LIMIT 1
+            `;
+            
+            db.query(getEmailSql, [id], (emailErr, rows) => { 
+                if (!emailErr && rows.length > 0 && rows[0].user_email) {
+                    // ดึงตัวแปรที่ได้จาก SQL ออกมาใช้
+                    const { user_email, assignee_name, original_message, ticket_title } = rows[0];
+                    console.log(`✅ Found Email: ${user_email}. Preparing to send HTML email...`);
+                    
+                    const solvedHtmlTemplate = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+                        </div>
+                        <div style="padding: 30px; background-color: #ffffff;">
+                            <p style="font-size: 16px; color: #333;">Hello,</p>
+                            <p style="font-size: 16px; color: #333;">Good news! Your support request has been successfully resolved.</p>
+                            
+                            <div style="background-color: #f8f9fa; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                                <p style="margin-bottom: 5px; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;"><strong>Issue Details:</strong></p>
+                                <p style="margin-top: 0; margin-bottom: 8px; color: #333; font-size: 16px; font-weight: bold;">[${ticket_title || 'Ticket'}]</p>
+                                <p style="margin-top: 0; color: #555; font-size: 15px; font-style: italic;">"${original_message || 'No description provided.'}"</p>
+                            </div>
+                            
+                            <div style="background-color: #e8f5e9; border-left: 5px solid #198754; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                                <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: #198754;">✅ Solved</span></h3>
+                                <p style="color: #555; font-size: 15px;"><strong>Solved by:</strong> ${assignee_name || 'CEiVoice Assignee'}</p>
+                                <hr style="border: 0; border-top: 1px solid #c8e6c9; margin: 15px 0;">
+                                <p style="margin-bottom: 5px; color: #555; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;"><strong>Resolution Details:</strong></p>
+                                <p style="margin-top: 0; color: #333; font-size: 16px; white-space: pre-wrap;">${resolution_comment || 'No further details provided.'}</p>
+                            </div>
+                            
+                            <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you for using CEiVoice Support!<br/><strong style="color: #198754;">The CEiVoice Team</strong></p>
+                        </div>
+                    </div>
+                    `;
+
+                    sendNotificationEmail(
+                        user_email,
+                        "CEiVoice: Request Solved",
+                        solvedHtmlTemplate
+                    );
+                } else {
+                    console.log(`❌ Error: Could not find User Email for Ticket ID: ${id}`);
+                }
+            });
+        }
             res.json({ success: true });
         });
     });
