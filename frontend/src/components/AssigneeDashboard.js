@@ -98,18 +98,7 @@ const getNameFromId = (id) => {
         }
 
         try {
-            if (isClosing) {
-                await fetch(`${API_URL}/assignee/post-comment`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ticket_id: selectedTicket.id,
-                        user_id: userId,
-                        comment_text: `[RESOLUTION]: ${resolution}`,
-                        is_internal: false
-                    })
-                });
-            }
+            
 
             await fetch(`${API_URL}/assignee/update-ticket/${selectedTicket.id}`, {
                 method: 'PUT',

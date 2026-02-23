@@ -28,7 +28,7 @@ ${JSON.stringify(categories)}
 User message:
 "${userMessage}"
 Task:
-- Create a ticket title, category name, and summary.
+- Create a ticket title(maximum 100 characters), category name, and summary(maximum 500 characters).
 - Provide a suggested solution as an array of steps.
 - **assignee_category_id**: Identify the ID(s) from the Categories list that best match the nature of the issue.
 - **assigned_to_id**: Select the best worker ID from the Available Assignees list based on their expertise.
