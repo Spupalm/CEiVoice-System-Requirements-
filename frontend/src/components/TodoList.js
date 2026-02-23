@@ -24,7 +24,8 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         'drafts': ['Draft', 'Submitted', 'Merged'],
         'official': ['New', 'Assigned', 'Solving', 'Solved', 'Fail'],
         'users': ['admin', 'assignee', 'user'],
-        'approvals': []
+        'approvals': [],
+        'reports': []
     }
     // Load Data
     useEffect(() => {
@@ -419,6 +420,14 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                         <i className="bi bi-person-check me-2"></i> Approvals
                     </button>
                 </div>
+            )}
+            {role === 'admin' && (
+                <button
+                    className={`nav-link border-0 bg-transparent text-start w-100 p-3 ${currentView === 'reports' ? 'active fw-bold text-primary border-start border-primary border-4' : 'text-muted'}`}
+                    onClick={() => setCurrentView('reports')}
+                >
+                    <i className="bi bi-bar-chart-line me-2"></i> Reports
+                </button>
             )}
         </div>
     );
@@ -943,6 +952,113 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
             </div>
         );
     };
+
+    const ReportDashboard = ({ API_URL }) => {
+        // กำหนดค่าเริ่มต้นเป็น Array ว่าง เพื่อไม่ให้ .map() พัง
+        const [stats, setStats] = useState({
+            total: 0,
+            avgTime: 0,
+            byStatus: [],    // สำคัญ: ต้องเป็น [] ไม่ใช่ null
+            byCategory: []   // สำคัญ: ต้องเป็น [] ไม่ใช่ null
+        });
+
+        useEffect(() => {
+            fetch(`${API_URL}/admin/reports`)
+                .then(res => res.json())
+                .then(data => {
+                    // ตรวจสอบข้อมูลที่ได้รับก่อน Set State
+                    //console.log("Fetched report data:", data);
+                    setStats({
+                        total: data.total,
+                        avgTime: data.avgTime || 0,
+                        byStatus: data.byStatus || [],
+                        byCategory: data.byCategory || []
+                    });
+                })
+                .catch(err => console.error("Fetch error:", err));
+        }, [API_URL]);
+
+        if (!stats) return <div>Loading reports...</div>;
+        console.log("Fetched report data:", stats);
+        return (
+            <div className="mt-4">
+                <h4 className="fw-bold mb-4 text-primary">
+                    <i className="bi bi-graph-up-arrow me-2"></i>System Performance
+                </h4>
+
+                {/* Metric Cards */}
+                <div className="row g-3 mb-4">
+                    <div className="col-md-4">
+                        <div className="card border-0 shadow-sm bg-primary text-white p-3 rounded-4">
+                            <small>Total Tickets</small>
+                            <h2 className="fw-bold">{stats.total || 0}</h2>
+                        </div>
+                    </div>
+                    <div className="col-md-4">
+                        <div className="card border-0 shadow-sm bg-success text-white p-3 rounded-4">
+                            <small>Avg. Resolution Time</small>
+                            <h2 className="fw-bold">
+                                {parseFloat(stats.avgTime || 0).toFixed(1)}
+                                <span className="small fs-6 ms-1">Hours</span>
+                            </h2>
+                        </div>
+                    </div>
+                    <div className="col-md-4">
+                        <div className="card border-0 shadow-sm p-4 rounded-4 bg-warning text-dark h-100">
+                            <small className="opacity-75">Current Backlogs</small>
+                            <h1 className="fw-bold mb-0">
+                                {stats.byStatus?.find(s => s.status === 'New' || s.status === 'Assigned'||s.status === 'Solving')?.count || 0}
+                            </h1>
+                            <div className="mt-2 small"><i className="bi bi-exclamation-triangle"></i> Status: New Assigned Solving</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row g-4">
+                    {/* Status Breakdown - เปลี่ยนเป็น div เพื่อรองรับ progress bars */}
+                    <div className="col-md-6">
+                        <div className="card border-0 shadow-sm p-4 rounded-4 h-100">
+                            <h6 className="fw-bold mb-3">Tickets by Status</h6>
+                            <div className="status-list">
+                                {stats.byStatus?.map(s => (
+                                    <div key={s.status} className="mb-3">
+                                        <div className="d-flex justify-content-between small mb-1">
+                                            <span>{s.status}</span>
+                                            <span className="fw-bold">{s.count}</span>
+                                        </div>
+                                        <div className="progress" style={{ height: '8px' }}>
+                                            <div
+                                                className="progress-bar bg-info"
+                                                style={{ width: `${stats.totalTickets > 0 ? (s.count / stats.totalTickets) * 100 : 0}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Category Breakdown - เปลี่ยนเป็น List Group Item ที่ถูกต้อง */}
+                    <div className="col-md-6">
+                        <div className="card border-0 shadow-sm p-4 rounded-4 h-100">
+                            <h6 className="fw-bold mb-3">Tickets by Category</h6>
+                            <ul className="list-group list-group-flush">
+                                {stats.byCategory?.map(c => (
+                                    <li key={c.name} className="list-group-item d-flex justify-content-between align-items-center px-0 border-light">
+                                        <span className="small text-muted">{c.name}</span>
+                                        <span className="badge bg-primary rounded-pill">{c.count}</span>
+                                    </li>
+                                ))}
+                                {(!stats.byCategory || stats.byCategory.length === 0) && (
+                                    <li className="list-group-item text-center text-muted small px-0">No data available</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
     return (
         <div className="d-flex min-vh-100 bg-white">
             {renderSidebar()}
@@ -1021,10 +1137,14 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                             </div>
                         )}
                         {role === 'admin' && (
-                            currentView === 'approvals' ? (
-                                /* เพิ่มบรรทัดนี้เพื่อเรียกใช้ Section ที่เราสร้างไว้ข้างบน */
+                            currentView === 'reports' ? (
+                                /* 1. หน้า Dashboard รายงานผล */
+                                <ReportDashboard API_URL={API_URL} />
+                            ) : currentView === 'approvals' ? (
+                                /* 2. หน้าอนุมัติ Assignee */
                                 <AdminApprovalSection API_URL={API_URL} />
                             ) : (
+                                /* 3. หน้าจัดการ Ticket ปกติตาม viewConfigs */
                                 viewConfigs[currentView] ? (
                                     viewConfigs[currentView].map(status => renderTaskGroup(status))
                                 ) : (
@@ -1032,6 +1152,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                 )
                             )
                         )}
+
                     </div>
                 )}
             </div>

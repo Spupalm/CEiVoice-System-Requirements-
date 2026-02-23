@@ -902,6 +902,51 @@ app.put('/api/admin/approve-user/:id', (req, res) => {
     });
 });
 
+app.get('/api/admin/reports', (req, res) => {
+    const statusSql = "SELECT status, COUNT(*) as count FROM tickets GROUP BY status";
+    // 2. นับจำนวน Ticket แยกตาม Category (เชื่อมด้วยชื่อหมวดหมู่ตามรูปโครงสร้างตาราง)
+    const categorySql = "SELECT c.name, COUNT(t.id) as count FROM categories c LEFT JOIN tickets t ON c.name = t.category GROUP BY c.id";
+    
+    // 3. คำนวณเวลาเฉลี่ย (Resolution Time) สำหรับงานที่สถานะเป็น 'Solved' หรือ 'Solved (Auto)'
+    const avgTimeSql = `
+        SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, updated_at)) as avg_hours 
+        FROM tickets 
+        WHERE status LIKE 'Solved%'`;
+    // 1. ดึงข้อมูล Status
+    db.query(statusSql, (err, statusRes) => {
+        if (err) {
+            console.error("SQL Error (Status):", err); // ดูที่ terminal ของคุณ
+            return res.status(500).json({ message: "Error in status query", error: err });
+        }
+
+        // 2. ดึงข้อมูล Category (ถ้าจุดนี้พัง แสดงว่าตาราง categories หรือคอลัมน์ category_id มีปัญหา)
+        db.query(categorySql, (err, catRes) => {
+            if (err) {
+                console.error("SQL Error (Category):", err);
+                return res.status(500).json({ message: "Error in category query", error: err });
+            }
+
+            // 3. คำนวณเวลาเฉลี่ย
+            db.query(avgTimeSql, (err, timeRes) => {
+                if (err) {
+                    console.error("SQL Error (AvgTime):", err);
+                    return res.status(500).json({ message: "Error in avgTime query", error: err });
+                }
+
+                // รวบรวมข้อมูลส่งกลับ
+                const totalTickets = statusRes.reduce((a, b) => a + (b.count || 0), 0);
+                
+                res.json({
+                    total: totalTickets,
+                    avgTime: timeRes[0]?.avg_hours ? parseFloat(timeRes[0].avg_hours).toFixed(1) : 0,
+                    byStatus: statusRes,
+                    byCategory: catRes
+                });
+            });
+        });
+    });
+});
+
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
 });
