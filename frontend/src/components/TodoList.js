@@ -5,6 +5,7 @@ import AssigneeDashboard from './AssigneeDashboard'; // Add this
 const API_URL = process.env.REACT_APP_API_URL;
 
 function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin, userId, role }) {
+    console.log("TodoList Props:", { username, userEmail, profileImage, userId, role });
     const [todos, setTodos] = useState([]);
     const [requestMessage, setRequestMessage] = useState(''); // สำหรับ User ส่ง Request
     const [assignees, setAssignees] = useState([]);
@@ -354,6 +355,14 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
             <div className="text-center mb-5">
                 <img src={getProfileImageUrl(profileImage)} alt="Profile" className="rounded-circle border border-4 border-white shadow-sm mb-3" style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
                 <h5 className="fw-bold text-dark mb-0">{username}</h5>
+                {userEmail && userEmail !== 'null' && userEmail.trim() !== '' && (
+                    <div className="d-flex justify-content-center">
+                        <span className="badge bg-info-subtle text-info rounded-pill px-2 py-1 shadow-sm" style={{ fontSize: '0.7rem' }}>
+                            <i className="bi bi-envelope-fill me-1"></i>
+                            {userEmail}
+                        </span>
+                    </div>
+                )}
                 <div className="mt-1">
                     {role === 'admin' && <span className="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">Admin System</span>}
                     {role === 'assignee' && <span className="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2">Assignee</span>}
@@ -1007,7 +1016,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                         <div className="card border-0 shadow-sm p-4 rounded-4 bg-warning text-dark h-100">
                             <small className="opacity-75">Current Backlogs</small>
                             <h1 className="fw-bold mb-0">
-                                {stats.byStatus?.find(s => s.status === 'New' || s.status === 'Assigned'||s.status === 'Solving')?.count || 0}
+                                {stats.byStatus?.find(s => s.status === 'New' || s.status === 'Assigned' || s.status === 'Solving')?.count || 0}
                             </h1>
                             <div className="mt-2 small"><i className="bi bi-exclamation-triangle"></i> Status: New Assigned Solving</div>
                         </div>
@@ -1095,6 +1104,12 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                         <form onSubmit={handleSubmitRequest} className="mb-5 p-4 border rounded-4 shadow-sm bg-white">
                                             <div className="mb-3">
                                                 <label className="form-label fw-bold small text-muted">Submit New Request (AI Handled)</label>
+                                                {userEmail && (
+                                                    <span className="badge bg-light border text-primary rounded-pill px-2 py-1 d-flex align-items-center shadow-sm">
+                                                        <i className="bi bi-envelope-fill me-1" style={{ fontSize: '0.8rem' }}></i>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>{userEmail}</span>
+                                                    </span>
+                                                )}
                                                 <textarea
                                                     className="form-control border-0 bg-light py-2"
                                                     rows="3"

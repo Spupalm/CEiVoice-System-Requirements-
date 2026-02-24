@@ -9,6 +9,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { generateSupportTicket } from "./services/aiService.js";
 import assigneeRoutes from './assigneeRoutes.js';
 import { sendNotificationEmail } from './services/emailService.js';
+import e from 'express';
 
 const app = express();
 const port = 5001;
@@ -104,8 +105,8 @@ app.post('/api/login', async (req, res) => {
                         username: user.username,
                         fullName: user.full_name,
                         profileImage: user.profile_image,
-                        role: user.role
-
+                        role: user.role,
+                        email: user.email
                     }
                 });
             }
@@ -158,6 +159,7 @@ app.post('/api/google-login', async (req, res) => {
                                     id: user.id,
                                     username: user.username,
                                     fullName: user.full_name,
+                                    email: user.email,
                                     profileImage: profileImage || user.profile_image,
                                     role: user.role
                                 }
@@ -172,7 +174,7 @@ app.post('/api/google-login', async (req, res) => {
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     `;
                     // ใช้ email เป็น username สำหรับบัญชีใหม่ที่สร้างผ่าน Google
-                    const values = [name, email, email, 'OAUTH_USER_NO_PASSWORD', profileImage, 'user', 1];
+                    const values = [name, name, email, 'OAUTH_USER_NO_PASSWORD', profileImage, 'user', 1];
 
                     db.query(sqlInsert, values, (err, result) => {
                         if (err) {
@@ -186,10 +188,12 @@ app.post('/api/google-login', async (req, res) => {
                                 id: result.insertId,
                                 username: email,
                                 fullName: name,
+                                email: email,
                                 profileImage: profileImage,
                                 role: 'user'
                             }
                         });
+                        console.log(res)
                     });
                 }
             }

@@ -48,12 +48,13 @@ function Login({ onLogin, goToSignUp }) {
                 handleLoginFail();
                 return;
             }
-            console.log(data.user.id)
+            console.log(data)
             localStorage.setItem('todo_user_id', data.user.id);
             localStorage.setItem('todo_username', data.user.username);
             localStorage.setItem('todo_profile', data.user.profileImage);
             localStorage.setItem('todo_user_role', data.user.role);
-            onLogin(data.user.username, data.user.profileImage, data.user.id, data.user.role);
+            localStorage.setItem('todo_user_email', data.user.email);
+            onLogin(data.user.username, data.user.profileImage, data.user.id, data.user.role, data.user.email);
         } catch (err) {
             setError('Network error: Could not connect to the server.');
         }
@@ -80,7 +81,9 @@ function Login({ onLogin, goToSignUp }) {
                 localStorage.setItem('todo_username', data.user.username);
                 localStorage.setItem('todo_profile', data.user.profileImage || '');
                 localStorage.setItem('todo_user_role', data.user.role);
-                onLogin(data.user.username, data.user.profileImage || '', data.user.id, data.user.role);
+                localStorage.setItem('todo_user_email', data.user.email);
+                console.log(data);
+                onLogin(data.user.username, data.user.profileImage || '', data.user.id, data.user.role, data.user.email);
             } else {
                 setError(data.message || 'Google login failed on server.');
             }

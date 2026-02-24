@@ -11,6 +11,7 @@ function App() {
     const [page, setPage] = useState('login');
     const [currentUserId, setCurrentUserId] = useState(null);
     const [profileImage, setProfileImage] = useState('');
+    const [userEmail, setUserEmail] = useState('');
     const [userRole, setUserRole] = useState('');
     useEffect(() => {
         const storedUser = localStorage.getItem('todo_username');
@@ -21,28 +22,34 @@ function App() {
         if (storedRole) setUserRole(storedRole);
         const storedUserId = localStorage.getItem('todo_user_id');
         if (storedUserId) setCurrentUserId(storedUserId);
+        const storedEmail = localStorage.getItem('todo_user_email');
+        if (storedEmail) setUserEmail(storedEmail);
     }, []);
 
-    const handleLogin = (username, image, id, role) => {
+    const handleLogin = (username, image, id, role, email) => {
         setCurrentUser(username);
         setCurrentUserId(id);
         setProfileImage(image);
         setUserRole(role);
+        setUserEmail(email);    
         localStorage.setItem('todo_username', username);
         localStorage.setItem('todo_user_id', id); // บันทึกลงเครื่อง
         localStorage.setItem('todo_profile', image);
+        localStorage.setItem('todo_user_email', email);
         localStorage.setItem('todo_user_role', role);
         setPage('todoList'); // ไปที่หน้า Todo หลัง Login สำเร็จ
-        console.log(role);
+        console.log(username, image, id, role, email);
     };
 
     const handleLogout = () => {
         localStorage.removeItem('todo_username');
         localStorage.removeItem('todo_user_id'); // ลบ ID ออกตอน Logout
         localStorage.removeItem('todo_profile');
+        localStorage.removeItem('todo_user_email');
         localStorage.removeItem('todo_user_role');
         setCurrentUser(null);
         setCurrentUserId(null);
+        setUserEmail('');
         setUserRole('');
         setPage('login');
     };
@@ -87,6 +94,7 @@ function App() {
                                         username={currentUser}
                                         userId={currentUserId} // ส่ง ID เข้าไปที่ TodoList เพื่อใช้เช็คสิทธิ์
                                         onLogout={handleLogout}
+                                        userEmail={userEmail}
                                         profileImage={profileImage}
                                         createTeam={() => setPage('createTeam')}
                                         createNewAdmin={() => setPage('createNewAdmin')}

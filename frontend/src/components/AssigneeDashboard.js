@@ -7,7 +7,6 @@ function AssigneeDashboard({ userId, API_URL }) {
     const [allUsers, setAllUsers] = useState([]); 
     const [comments, setComments] = useState([]); 
     const [followers, setFollowers] = useState([]);
-    
     const [newComment, setNewComment] = useState("");
     const [isInternal, setIsInternal] = useState(false);
     const [newAssigneeId, setNewAssigneeId] = useState("");
