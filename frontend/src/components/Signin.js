@@ -17,6 +17,7 @@ function SignUp({ onSuccess, goToLogIn }) {
     const [captchaToken, setCaptchaToken] = useState(null);
     const [availableCategories, setAvailableCategories] = useState([]);
     const [selectedSkills, setSelectedSkills] = useState([]); // เก็บเป็น Array ของ ID
+    const [email, setEmail] = useState('');
 
 
     const handleLoginFail = async () => {
@@ -63,6 +64,7 @@ function SignUp({ onSuccess, goToLogIn }) {
         const formData = new FormData();
         formData.append('fullName', fullName);
         formData.append('username', username);
+        formData.append('email', email);
         formData.append('password', password);
         formData.append('role', role);
         formData.append('skills', role === 'assignee' ? JSON.stringify(selectedSkills) : '[]');
@@ -150,7 +152,19 @@ function SignUp({ onSuccess, goToLogIn }) {
                     />
 
                 </div>
-
+                {/* Email */}
+                <div className="mb-3 text-start">
+                    <label className="form-label small fw-bold text-secondary">
+                        Email(Optional: system will send notifications to this email)
+                    </label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. rick_astley"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                </div>
                 {/* Password */}
                 <div className="mb-3 text-start">
                     <label className="form-label small fw-bold text-secondary">

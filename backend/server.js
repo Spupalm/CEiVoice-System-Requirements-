@@ -124,29 +124,31 @@ app.post('/api/google-login', async (req, res) => {
     }
 
     try {
-        // 1. Verify the token with Google
+        // 1. ตรวจสอบ Token กับ Google
         const ticket = await client.verifyIdToken({
             idToken: token,
             audience: process.env.GOOGLE_CLIENT_ID,
         });
 
         const payload = ticket.getPayload();
-        const { email, name, sub: googleId } = payload;
+        const { email, name } = payload;
 
-        // 2. Check if user exists in your MySQL DB
-        // Using email or a specific 'google_id' column is recommended
-        
+        // 2. ตรวจสอบว่ามี User ที่ใช้อีเมลนี้อยู่ในระบบหรือไม่ (ไม่ว่าจะสมัครวิธีไหน)
         db.query(
-            'SELECT * FROM users WHERE username = ? OR username = ?',
-            [email, googleId],
+            'SELECT * FROM users WHERE email = ?',
+            [email],
             (err, results) => {
                 if (err) return res.status(500).json({ message: 'Database error' });
 
                 if (results.length > 0) {
+                    // --- [กรณีพบอีเมลตรงกัน] ---
+                    // ระบบจะอนุญาตให้ Login ได้ทันที (ถือเป็นการเชื่อมบัญชีโดยอัตโนมัติ)
                     const user = results[0];
+                    
+                    // อัปเดตรูปโปรไฟล์ให้เป็นรูปปัจจุบันจาก Google (Optional)
                     db.query(
                         'UPDATE users SET profile_image = ? WHERE id = ?',
-                        [profileImage, user.id],
+                        [profileImage || user.profile_image, user.id],
                         (updateErr) => {
                             if (updateErr) console.error('Error updating profile image:', updateErr);
 
@@ -156,32 +158,39 @@ app.post('/api/google-login', async (req, res) => {
                                     id: user.id,
                                     username: user.username,
                                     fullName: user.full_name,
-                                    profileImage: profileImage, // ส่ง URL รูปกลับไปให้ Frontend
-                                    role: user.role// 🟢 เพิ่มบรรทัดนี้! บัญชี Google สร้างใหม่จะได้ Role เป็น user เสมอ
+                                    profileImage: profileImage || user.profile_image,
+                                    role: user.role
                                 }
                             });
                         }
                     );
                 } else {
-                    // User doesn't exist, create a new record
-                    // Note: password can be null or a random string for OAuth users
-                    db.query(
-                        'INSERT INTO users (full_name, username, password, profile_image) VALUES (?, ?, ?, ?)',
-                        [name, email, 'OAUTH_USER_NO_PASSWORD', profileImage],
-                        (err, result) => {
-                            if (err) return res.status(500).json({ message: 'Error creating user' });
+                    // --- [กรณีไม่พบอีเมลในระบบ] ---
+                    // สร้างบัญชีใหม่ให้ทันที
+                    const sqlInsert = `
+                        INSERT INTO users (full_name, username, email, password, profile_image, role, is_approved) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    // ใช้ email เป็น username สำหรับบัญชีใหม่ที่สร้างผ่าน Google
+                    const values = [name, email, email, 'OAUTH_USER_NO_PASSWORD', profileImage, 'user', 1];
 
-                            res.json({
-                                success: true,
-                                user: {
-                                    id: result.insertId,
-                                    username: email,
-                                    fullName: name,
-                                    profileImage: profileImage // ส่ง URL รูปกลับไปให้ Frontend
-                                }
-                            });
+                    db.query(sqlInsert, values, (err, result) => {
+                        if (err) {
+                            console.error('Insert Error:', err);
+                            return res.status(500).json({ message: 'Error creating user' });
                         }
-                    );
+
+                        res.json({
+                            success: true,
+                            user: {
+                                id: result.insertId,
+                                username: email,
+                                fullName: name,
+                                profileImage: profileImage,
+                                role: 'user'
+                            }
+                        });
+                    });
                 }
             }
         );
@@ -193,7 +202,7 @@ app.post('/api/google-login', async (req, res) => {
 
 
 app.post('/api/register', uploadProfile.single('profileImage'), async (req, res) => {
-    const { fullName, username, password, captchaToken, role, skills } = req.body;
+    const { fullName, username, email, password, captchaToken, role, skills } = req.body;
 
     if (!fullName || !username || !password || !captchaToken || !role) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -210,43 +219,57 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
         if (!captchaResponse.data.success) {
             return res.status(400).json({ message: 'CAPTCHA verification failed' });
         }
+        const hasEmail = email && email.trim() !== '';
+        const checkSql = hasEmail
+            ? 'SELECT username, email FROM users WHERE username = ? OR email = ?'
+            : 'SELECT username FROM users WHERE username = ?';
 
+        const checkParams = hasEmail ? [username, email] : [username];
         // --- 2. ตรวจสอบ Username ซ้ำ (เหมือนเดิม) ---
-        db.query('SELECT id FROM users WHERE username = ?', [username], async (err, results) => {
-            if (err) return res.status(500).json({ message: 'Database error' });
-            if (results.length > 0) return res.status(400).json({ message: 'Username already exists' });
+        db.query(checkSql, checkParams, async (err, results) => {
+            if (err) {
+                console.error("Check duplicate error:", err);
+                return res.status(500).json({ message: 'Database error during validation' });
+            }
 
+            if (results.length > 0) {
+                const isUsernameTaken = results.some(user => user.username === username);
+                const isEmailTaken = hasEmail && results.some(user => user.email === email);
+
+                if (isUsernameTaken) return res.status(400).json({ message: 'Username already exists' });
+                if (isEmailTaken) return res.status(400).json({ message: 'Email already exists' });
+            }
+
+            // --- 4. เตรียมข้อมูลก่อนบันทึก ---
             const hashedPassword = await bcrypt.hash(password, 10);
             const profileImage = req.file ? req.file.filename : null;
             const isApproved = (role === 'assignee') ? 0 : 1;
+            const userEmail = hasEmail ? email.trim() : null; // บันทึกเป็น null ถ้าไม่กรอก
+
             const sqlUser = `
-                INSERT INTO users (full_name, username, password, profile_image, role, is_approved)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO users (full_name, username, email, password, profile_image, role, is_approved)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             `;
 
-            db.query(sqlUser, [fullName, username, hashedPassword, profileImage, role, isApproved], (err, userResult) => {
+            // --- 5. บันทึกลงตาราง users ---
+            db.query(sqlUser, [fullName, username, userEmail, hashedPassword, profileImage, role, isApproved], (err, userResult) => {
                 if (err) {
-                    console.error("Registration Error:", err);
+                    console.error("Insertion Error:", err);
                     return res.status(500).json({ message: 'Database error during insertion' });
                 }
 
-                const userId = userResult.insertId; // ดึง ID ของ user ที่เพิ่งสร้าง
+                const userId = userResult.insertId;
 
-                // --- 4. บันทึกทักษะลงตาราง user_skills (ถ้ามี) ---
+                // --- 6. บันทึกทักษะลงตาราง user_skills (สำหรับ Assignee) ---
                 if (role === 'assignee' && skills) {
                     try {
-                        // แปลง string "[1,2,3]" ที่ส่งมาจาก Frontend ให้เป็น Array
                         const skillIds = JSON.parse(skills);
-
-                        if (skillIds.length > 0) {
-                            // เตรียมข้อมูลสำหรับ Bulk Insert: [[userId, catId1], [userId, catId2], ...]
+                        if (Array.isArray(skillIds) && skillIds.length > 0) {
                             const skillValues = skillIds.map(catId => [userId, catId]);
-
                             const sqlSkills = `INSERT INTO user_skills (user_id, category_id) VALUES ?`;
 
                             db.query(sqlSkills, [skillValues], (skillErr) => {
                                 if (skillErr) console.error("Error saving user skills:", skillErr);
-                                // เราไม่ return error ตรงนี้เพื่อให้การสมัครสมาชิกหลักยังสำเร็จ
                             });
                         }
                     } catch (parseErr) {
@@ -254,16 +277,17 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
                     }
                 }
 
+                // --- 7. ส่งการตอบกลับ ---
                 if (role === 'assignee') {
                     res.status(201).json({
                         success: true,
-                        isPending: true, // บอก Frontend ว่าสถานะคือรออนุมัติ
+                        isPending: true,
                         message: 'Registration successful! Your account is pending admin approval.'
                     });
                 } else {
                     res.status(201).json({
                         success: true,
-                        isPending: false, // บอก Frontend ว่าใช้งานได้เลย
+                        isPending: false,
                         message: 'Registration successful! You can now log in.'
                     });
                 }
@@ -663,13 +687,13 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, 'New', ?, ?, ?)`;
 
         await db.promise().query(sqlInsertTicket, [
-            ticketNo, 
-            title, 
-            category, 
+            ticketNo,
+            title,
+            category,
             summary,
             JSON.stringify(resolution_path),
-            assignee_id, 
-            userId, 
+            assignee_id,
+            userId,
             formattedDeadline
         ]);
 
@@ -964,7 +988,7 @@ app.get('/api/admin/reports', (req, res) => {
     const statusSql = "SELECT status, COUNT(*) as count FROM tickets GROUP BY status";
     // 2. นับจำนวน Ticket แยกตาม Category (เชื่อมด้วยชื่อหมวดหมู่ตามรูปโครงสร้างตาราง)
     const categorySql = "SELECT c.name, COUNT(t.id) as count FROM categories c LEFT JOIN tickets t ON c.name = t.category GROUP BY c.id";
-    
+
     // 3. คำนวณเวลาเฉลี่ย (Resolution Time) สำหรับงานที่สถานะเป็น 'Solved' หรือ 'Solved (Auto)'
     const avgTimeSql = `
         SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, updated_at)) as avg_hours 
@@ -993,7 +1017,7 @@ app.get('/api/admin/reports', (req, res) => {
 
                 // รวบรวมข้อมูลส่งกลับ
                 const totalTickets = statusRes.reduce((a, b) => a + (b.count || 0), 0);
-                
+
                 res.json({
                     total: totalTickets,
                     avgTime: timeRes[0]?.avg_hours ? parseFloat(timeRes[0].avg_hours).toFixed(1) : 0,
