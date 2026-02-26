@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql_db
--- Generation Time: Feb 24, 2026 at 12:50 PM
+-- Generation Time: Feb 26, 2026 at 11:45 AM
 -- Server version: 8.0.44
 -- PHP Version: 8.3.26
 
@@ -67,7 +67,9 @@ CREATE TABLE `comments` (
 
 INSERT INTO `comments` (`id`, `ticket_id`, `user_id`, `comment_text`, `comment_type`, `created_at`) VALUES
 (1, 25, 22, 'ควย', 'Public', '2026-02-20 13:53:44'),
-(2, 28, 22, 'ควยไรไอวัชร รีบจัง', 'Public', '2026-02-23 17:21:45');
+(2, 28, 22, 'ควยไรไอวัชร รีบจัง', 'Public', '2026-02-23 17:21:45'),
+(3, 36, 36, 'dwdwdwdw', 'Public', '2026-02-26 11:23:31'),
+(4, 36, 36, 'ไกไ', 'Public', '2026-02-26 11:24:58');
 
 -- --------------------------------------------------------
 
@@ -89,7 +91,14 @@ INSERT INTO `draft_request_mapping` (`draft_id`, `request_id`) VALUES
 (36, 36),
 (37, 38),
 (38, 39),
-(39, 40);
+(39, 40),
+(40, 42),
+(37, 43),
+(37, 44),
+(43, 45),
+(43, 46),
+(45, 47),
+(45, 48);
 
 -- --------------------------------------------------------
 
@@ -99,9 +108,11 @@ INSERT INTO `draft_request_mapping` (`draft_id`, `request_id`) VALUES
 
 CREATE TABLE `draft_tickets` (
   `id` int NOT NULL,
+  `user_email` varchar(255) DEFAULT NULL,
   `title` varchar(255) DEFAULT NULL,
   `category` varchar(100) DEFAULT NULL,
   `summary` text,
+  `original_message` text,
   `resolution_path` text,
   `suggested_assignees` int DEFAULT NULL,
   `assigned_to` int DEFAULT NULL,
@@ -117,12 +128,10 @@ CREATE TABLE `draft_tickets` (
 -- Dumping data for table `draft_tickets`
 --
 
-INSERT INTO `draft_tickets` (`id`, `title`, `category`, `summary`, `resolution_path`, `suggested_assignees`, `assigned_to`, `deadline`, `status`, `ai_suggested_merge_id`, `created_by_ai`, `created_at`, `updated_at`) VALUES
-(35, 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 1, NULL, NULL, 'Submitted', NULL, 1, '2026-02-19 12:29:52', '2026-02-19 15:35:34'),
-(36, 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', '[\"Check the user\s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\'s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 1, NULL, '2026-02-21 19:13:00', 'Submitted', NULL, 1, '2026-02-19 12:34:48', '2026-02-23 17:17:11'),
-(37, 'Cannot Open Desktop', 'IT Support', 'The user is unable to open or access their desktop environment.', '[\"Restart the computer and try again.\",\"Check all monitor cables and ensure they are securely connected to both the monitor and the computer.\",\"If possible, try booting the computer in Safe Mode to diagnose potential software conflicts.\",\"Verify if any recent software installations or updates were performed before the issue started.\"]', 1, 25, NULL, 'Draft', NULL, 1, '2026-02-23 17:11:51', '2026-02-23 17:11:51'),
-(38, 'Unable to Send Emails', 'IT Support', 'User reports that they are unable to send messages from their email account.', '[\"Check internet connection.\",\"Verify email client settings, especially the outgoing (SMTP) server settings and authentication.\",\"Check if the mailbox storage limit has been reached.\",\"Try sending a test email to a known working address.\",\"Restart the email application or computer.\",\"Note any specific error messages received when attempting to send.\"]', 1, NULL, '2026-02-24 00:15:00', 'Submitted', NULL, 1, '2026-02-23 17:14:42', '2026-02-23 17:17:11'),
-(39, 'General Computer Issue / Frustration', 'IT Support', 'The user is expressing frustration and indicates a general issue with their computer\s functionality.', '[\"Ask the user to describe the specific problem they are experiencing.\",\"Suggest basic troubleshooting steps like restarting the computer.\",\"Inquire about any error messages or unusual behavior.\",\"Verify power connections and peripherals.\"]', 1, 22, '2026-02-26 00:20:00', 'Submitted', NULL, 1, '2026-02-23 17:18:09', '2026-02-23 17:20:50');
+INSERT INTO `draft_tickets` (`id`, `user_email`, `title`, `category`, `summary`, `original_message`, `resolution_path`, `suggested_assignees`, `assigned_to`, `deadline`, `status`, `ai_suggested_merge_id`, `created_by_ai`, `created_at`, `updated_at`) VALUES
+(35, NULL, 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.', NULL, '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 1, NULL, NULL, 'Submitted', NULL, 1, '2026-02-19 12:29:52', '2026-02-19 15:35:34'),
+(36, NULL, 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.', NULL, '[\"Check the user\s network connectivity to ensure internet access.\",\"Verify that the API server\s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 1, NULL, '2026-02-21 19:13:00', 'Submitted', NULL, 1, '2026-02-19 12:34:48', '2026-02-23 17:17:11')
+
 
 -- --------------------------------------------------------
 
@@ -152,9 +161,31 @@ CREATE TABLE `tickets` (
 
 INSERT INTO `tickets` (`id`, `ticket_no`, `title`, `category`, `summary`, `resolution_path`, `status`, `resolution_comment`, `assignee_id`, `follower_id`, `deadline`, `created_at`, `updated_at`) VALUES
 (24, 'TK-1771510901193', 'API Server Connection Issue', 'IT Support', 'The user is reporting an inability to connect to the API server. This could be due to network connectivity problems, firewall restrictions, incorrect API endpoint configuration, or an issue with the API server itself.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Verify internet connectivity.\",\"Confirm the API endpoint URL is correct and accessible.\",\"Check local firewall settings to ensure access to the API server is not blocked.\",\"Attempt to ping the API server IP address or hostname to check for basic network reachability.\",\"Review API documentation for known outages or specific connection requirements (e.g., VPN, proxy).\"]', 'Assigned', NULL, 24, 17, '2026-03-06 21:21:00', '2026-02-19 14:21:41', '2026-02-22 15:30:34'),
-(25, 'TK-1771589621018', 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 'Failed', '', 22, 17, '2026-03-04 19:13:00', '2026-02-20 12:13:41', '2026-02-23 17:17:11'),
-(26, 'TK-1771866926390', 'Unable to Send Emails', 'IT Support', 'User reports that they are unable to send messages from their email account.', '[\"Check internet connection.\",\"Verify email client settings, especially the outgoing (SMTP) server settings and authentication.\",\"Check if the mailbox storage limit has been reached.\",\"Try sending a test email to a known working address.\",\"Restart the email application or computer.\",\"Note any specific error messages received when attempting to send.\"]', 'Failed', 'kuy stupid user', 22, 12, '2026-02-24 00:15:00', '2026-02-23 17:15:26', '2026-02-23 17:16:35'),
-(28, 'TK-1771867250419', 'General Computer Issue / Frustration', 'IT Support', 'The user is expressing frustration and indicates a general issue with their computer\s functionality.', '[\"Ask the user to describe the specific problem they are experiencing.\",\"Suggest basic troubleshooting steps like restarting the computer.\",\"Inquire about any error messages or unusual behavior.\",\"Verify power connections and peripherals.\"]', 'Solved', '56789', 22, 12, '2026-02-26 00:20:00', '2026-02-23 17:20:50', '2026-02-23 17:22:04');
+(25, 'TK-1771589621018', 'Cannot Connect to API Server', 'IT Support', 'The user is reporting an inability to establish a connection to the API server.\n\n[System Note: Assignee role changed to user. Ticket failed automatically.]', '[\"Check the user\'s network connectivity to ensure internet access.\",\"Verify that the API server\'s endpoint URL or IP address is correctly configured.\",\"Inspect local firewall settings or proxy configurations that might be blocking the connection.\",\"Attempt to ping the API server\s hostname or IP address to check basic reachability.\",\"Confirm the operational status of the API server itself.\"]', 'Failed', '', 22, 17, '2026-03-04 19:13:00', '2026-02-20 12:13:41', '2026-02-23 17:17:11')
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tickets_user_mapping`
+--
+
+CREATE TABLE `tickets_user_mapping` (
+  `id` int NOT NULL,
+  `ticket_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `request_id` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `tickets_user_mapping`
+--
+
+INSERT INTO `tickets_user_mapping` (`id`, `ticket_id`, `user_id`, `request_id`, `created_at`) VALUES
+(5, 35, 12, 45, '2026-02-26 10:21:03'),
+(6, 35, 17, 46, '2026-02-26 10:21:03'),
+(7, 36, 12, 47, '2026-02-26 10:24:36'),
+(8, 36, 41, 48, '2026-02-26 10:24:36');
 
 -- --------------------------------------------------------
 
@@ -202,7 +233,10 @@ INSERT INTO `ticket_history` (`id`, `ticket_id`, `action_type`, `old_value`, `ne
 (2, 25, 'STATUS_CHANGE', 'New', 'Assigned', 22, '2026-02-20 13:53:25'),
 (3, 25, 'STATUS_CHANGE', 'New', 'Assigned', 22, '2026-02-20 13:53:56'),
 (4, 26, 'STATUS_CHANGE', 'New', 'Failed', 22, '2026-02-23 17:16:35'),
-(5, 28, 'STATUS_CHANGE', 'New', 'Solved', 22, '2026-02-23 17:22:04');
+(5, 28, 'STATUS_CHANGE', 'New', 'Solved', 22, '2026-02-23 17:22:04'),
+(6, 36, 'STATUS_CHANGE', 'New', 'Assigned', 36, '2026-02-26 11:42:18'),
+(7, 36, 'STATUS_CHANGE', 'Assigned', 'Solving', 36, '2026-02-26 11:43:29'),
+(8, 36, 'STATUS_CHANGE', 'Solving', 'Solved', 36, '2026-02-26 11:43:58');
 
 -- --------------------------------------------------------
 
@@ -241,7 +275,6 @@ INSERT INTO `users` (`id`, `full_name`, `username`, `email`, `password`, `profil
 (27, 'assigneeTest(HRTeam)', 'HRTeam', NULL, '$2b$10$xDE7lBZg5E/Cf2.S4IWlsOoam63wIj6pSO93s/oqSsaVoLXG.FpwC', '1771236856794-140663019-68498.jpg', '2026-02-16 10:14:17', 'assignee', 1),
 (28, 'assigneeTest(Account&AccessTeam)', 'AccountTeam', NULL, '$2b$10$l2mkN5lUc4OC51buxs2b1.tQkJKkEtMuICCGW9lPa.oDZ3tB78qq6', '1771236905953-858629775-68328.jpg', '2026-02-16 10:15:06', 'assignee', 1),
 (29, 'assigneeTest(Finance&Billing team)', 'FinanceTeam', NULL, '$2b$10$uIWtmZz5Kr6GlEe8846W.uzs4hNpDxE76qU62zz3gr4S95S7N1sIW', '1771236957241-212946747-67792.jpg', '2026-02-16 10:15:57', 'assignee', 1),
-(30, 'dwdwdwdwd dwdwdwdwd', 'gaemefefelmfe@gmail.com', NULL, 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocJDLWpp2ttQKDOKVvbiLqJEXuE0W_LoUdSZ1UkLEzQNLzM4NA=s96-c', '2026-02-16 16:08:13', 'user', 1),
 (31, 'test2team', '2team', NULL, '$2b$10$2gAubtDEp8P/Gpfl5r/LRuvWbj1Mys/HXOnnXe.lfXfnJpDiGRlc.', '1771349622060-886226581-68497.jpg', '2026-02-17 17:33:42', 'assignee', 1),
 (32, 'checkphoto', 'check', NULL, '$2b$10$V6WrweWPpNb5WSRjLl2LO.8Agj4bVxflfbiic06ViHLIHkRYTA2Na', '1771424529073-47857953-68270.jpg', '2026-02-18 14:22:09', 'assignee', 1),
 (33, 'เหี้ยไรสัส', 'เหี้ย', NULL, '$2b$10$RbzMwlKrtPc8mdncvqkXVeMf94LeRTcH57CEC6W2Ai.QHrHB17JUi', '7ebb61a3f6e43967b65989efc379c35a.jpg', '2026-02-18 14:46:12', 'user', 1),
@@ -249,7 +282,8 @@ INSERT INTO `users` (`id`, `full_name`, `username`, `email`, `password`, `profil
 (36, 'assignee', 'ass', NULL, '$2b$10$iOzIRSHmJgXvVaAxkSado.q34WAA1wDCldFfd.T7.MMoUgAtOpE7e', '1771867586551-206890026-69230.jpg', '2026-02-23 17:26:26', 'assignee', 1),
 (37, 'keu', 'kuy', NULL, '$2b$10$XSKGNiu77/Sg0iic95VLK.E0ITCZlZSPcl6oZdJ14R9Pdq.dkdJQe', NULL, '2026-02-23 17:29:44', 'user', 1),
 (38, '67011380naja', '67011380', '67011380@kmitl.ac.th', '$2b$10$WsdwXOwWOZiahb1vG4rEzOkXMdsXZ9frc/nED2D0qFfVKTlxLtSBq', 'https://lh3.googleusercontent.com/a/ACg8ocIXG3634ZtSeg1dUsJUZ1CKb8UyC6Z9qrCQ5AT_N8g9SZiCPQ=s96-c', '2026-02-24 11:36:12', 'user', 1),
-(39, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-02-24 12:02:42', 'user', 1);
+(39, 'Watcharathorn Krachangmon', 'watcharat.kra_g31@mwit.ac.th', 'watcharat.kra_g31@mwit.ac.th', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocIZw_KmyKDE32eOsqMpySBz3zAZbn_EgedYbUqBo61dXnwCXnM=s96-c', '2026-02-24 12:02:42', 'user', 1),
+(41, 'dwdwdwdwd dwdwdwdwd', 'dwdwdwdwd dwdwdwdwd', 'gaemefefelmfe@gmail.com', 'OAUTH_USER_NO_PASSWORD', 'https://lh3.googleusercontent.com/a/ACg8ocJDLWpp2ttQKDOKVvbiLqJEXuE0W_LoUdSZ1UkLEzQNLzM4NA=s96-c', '2026-02-24 14:25:15', 'user', 1);
 
 -- --------------------------------------------------------
 
@@ -279,9 +313,17 @@ INSERT INTO `user_requests` (`id`, `user_id`, `user_email`, `message`, `created_
 (35, 17, 'rickroll', 'my computer temperature is high', '2026-02-18 16:02:35', 'draft', NULL, NULL, NULL, NULL),
 (36, 17, 'rickroll', 'i cannot connect to api server', '2026-02-19 12:29:46', 'ticket', 36, NULL, NULL, NULL),
 (37, 17, 'rickroll', 'i can not open computer', '2026-02-23 16:39:50', 'received', NULL, NULL, NULL, NULL),
-(38, 12, 'watcharathorn2549@gmail.com', 'can not open destop', '2026-02-23 17:11:46', 'draft', 37, NULL, NULL, NULL),
+(38, 12, 'watcharathorn2549@gmail.com', 'can not open destop', '2026-02-23 17:11:46', 'ticket', 37, NULL, NULL, NULL),
 (39, 12, 'watcharathorn2549@gmail.com', 'my email cant send message', '2026-02-23 17:14:36', 'ticket', 38, NULL, NULL, NULL),
-(40, 12, 'watcharathorn2549@gmail.com', 'kuy stupid computer', '2026-02-23 17:18:04', 'ticket', 39, NULL, NULL, NULL);
+(40, 12, 'watcharathorn2549@gmail.com', 'kuy stupid computer', '2026-02-23 17:18:04', 'ticket', 39, NULL, NULL, NULL),
+(41, 17, 'rickroll', 'cant use screen shot', '2026-02-25 12:52:39', 'received', NULL, NULL, NULL, NULL),
+(42, 12, 'watcharathorn2549@gmail.com', 'can not use cmd', '2026-02-25 12:54:10', 'draft', 40, NULL, NULL, NULL),
+(43, 17, 'null', 'my computer not open', '2026-02-26 09:46:34', 'draft', NULL, NULL, NULL, NULL),
+(44, 12, 'watcharathorn2549@gmail.com', 'my computer can not open', '2026-02-26 09:46:55', 'draft', NULL, NULL, NULL, NULL),
+(45, 12, 'watcharathorn2549@gmail.com', 'can not open website', '2026-02-26 09:57:16', 'ticket', 43, NULL, NULL, NULL),
+(46, 17, 'rickroll', 'website not open', '2026-02-26 09:57:43', 'ticket', 43, NULL, NULL, NULL),
+(47, 12, 'watcharathorn2549@gmail.com', 'can not logout from website', '2026-02-26 10:23:24', 'ticket', 45, NULL, NULL, NULL),
+(48, 41, 'gaemefefelmfe@gmail.com', 'can not logout', '2026-02-26 10:23:42', 'ticket', 45, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -360,6 +402,13 @@ ALTER TABLE `tickets`
   ADD KEY `fk_ticket_follower` (`follower_id`);
 
 --
+-- Indexes for table `tickets_user_mapping`
+--
+ALTER TABLE `tickets_user_mapping`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_ticket` (`ticket_id`,`user_id`);
+
+--
 -- Indexes for table `ticket_history`
 --
 ALTER TABLE `ticket_history`
@@ -404,37 +453,43 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `comments`
 --
 ALTER TABLE `comments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `draft_tickets`
 --
 ALTER TABLE `draft_tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+
+--
+-- AUTO_INCREMENT for table `tickets_user_mapping`
+--
+ALTER TABLE `tickets_user_mapping`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `ticket_history`
 --
 ALTER TABLE `ticket_history`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
 
 --
 -- AUTO_INCREMENT for table `user_requests`
 --
 ALTER TABLE `user_requests`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
 
 --
 -- Constraints for dumped tables

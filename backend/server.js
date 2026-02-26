@@ -429,10 +429,10 @@ app.post('/api/user-requests', (req, res) => {
 
                     // 5. บันทึกลง draft_tickets พร้อม Assignee ID และ Category ID
                     const sqlDraft = `
-                        INSERT INTO draft_tickets (title, category, summary, resolution_path, suggested_assignees,assigned_to, status, created_by_ai,ai_suggested_merge_id) 
-                        VALUES (?, ?, ?, ?, ?, ?, 'Draft', 1, ?)`;
-                    console.log("Inserting Draft Ticket with:", [ticket.title, ticket.category, ticket.summary, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id]);
-                    db.query(sqlDraft, [ticket.title, ticket.category, ticket.summary, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
+                        INSERT INTO draft_tickets (user_email, title, category, summary,original_message, resolution_path, suggested_assignees,assigned_to, status, created_by_ai,ai_suggested_merge_id) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Draft', 1, ?)`;
+                    console.log("Inserting Draft Ticket with:", [user_email, ticket.title, ticket.category, ticket.summary, message, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id]);
+                    db.query(sqlDraft, [user_email, ticket.title, ticket.category, ticket.summary,message,resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
                         if (draftErr) {
                             console.error("Draft Insert Error:", draftErr);
                             return;
@@ -690,7 +690,7 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
             INSERT INTO tickets (ticket_no, title, category, summary, resolution_path, status, assignee_id, follower_id, deadline) 
             VALUES (?, ?, ?, ?, ?, 'New', ?, ?, ?)`;
 
-        await db.promise().query(sqlInsertTicket, [
+        const [ticketResult] = await db.promise().query(sqlInsertTicket, [
             ticketNo,
             title,
             category,
@@ -700,7 +700,27 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
             userId,
             formattedDeadline
         ]);
+        console.log("Inserted Official Ticket with ID:", ticketResult);
+        const newTicketId = ticketResult.insertId;
+        console.log("New Ticket ID:", newTicketId);
+        const [allRelatedRequests] = await db.promise().query(
+            "SELECT id, user_id FROM user_requests WHERE draft_ticket_id = ?",
+            [draft_id]
+        );
 
+        if (allRelatedRequests.length > 0) {
+            // 🟢 บันทึกข้อมูลโดยเพิ่มค่า request_id (id จาก user_requests)
+            const mappingData = allRelatedRequests.map(req => [newTicketId, req.user_id, req.id]);
+            
+            await db.promise().query(
+                "INSERT INTO tickets_user_mapping (ticket_id, user_id, request_id) VALUES ?",
+                [mappingData]
+            );
+        }
+        const [allRelatedUsers] = await db.promise().query(
+            "SELECT user_id, user_email FROM user_requests WHERE draft_ticket_id = ?",
+            [draft_id]
+        );
         // 4. อัปเดตสถานะ Draft และ User Request
         const updateDraft = db.promise().query("UPDATE draft_tickets SET status = 'Submitted' WHERE id = ?", [draft_id]);
         const updateRequest = db.promise().query("UPDATE user_requests SET status = 'ticket' WHERE draft_ticket_id = ?", [draft_id]);
@@ -708,8 +728,7 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
         await Promise.all([updateDraft, updateRequest]);
 
         // 🟢 5. ส่งอีเมลแจ้งเตือนเมื่อตั๋วถูกสร้างทางการ
-        if (userEmail) {
-            const approvedHtml = `
+        const approvedHtml = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
                     <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
@@ -728,12 +747,23 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
                     <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
                 </div>
             </div>`;
-            sendNotificationEmail(userEmail, `CEiVoice: Ticket Created [${ticketNo}]`, approvedHtml);
+
+        // 🟢 3. ลูปส่งอีเมลหาทุกคนที่มี Email ในระบบ
+        if (allRelatedUsers.length > 0) {
+            allRelatedUsers.forEach(user => {
+                if (user.user_email) {
+                    sendNotificationEmail(
+                        user.user_email, 
+                        `CEiVoice: Ticket Created [${ticketNo}]`, 
+                        approvedHtml
+                    );
+                }
+            });
         }
 
         res.json({
             success: true,
-            message: "Ticket approved successfully",
+            message: `Ticket approved and notifications sent to ${allRelatedUsers.length} users.`,
             ticket_no: ticketNo
         });
 
@@ -818,7 +848,12 @@ app.post('/api/admin/merge-tickets', async (req, res) => {
             SET draft_id = ? 
             WHERE draft_id IN (?)
         `;
-
+        const updateUserRequestsSql = `
+            UPDATE user_requests 
+            SET draft_ticket_id = ? 
+            WHERE draft_ticket_id IN (?)
+        `;
+        await db.promise().query(updateUserRequestsSql, [mainDraftId, otherDraftIds]);
         // 2. ลบ draft tickets ที่เหลือทิ้ง
         const deleteDraftsSql = `
             DELETE FROM draft_tickets 
@@ -853,48 +888,7 @@ app.get('/api/admin/official-tickets', (req, res) => {
     });
 });
 
-app.post('/api/admin/approve-ticket', (req, res) => {
-    const { draft_id, title, category, summary, resolution_path, assignee_id, deadline } = req.body;
 
-    // แปลง ISO Date String เป็น MySQL Format (YYYY-MM-DD HH:MM:SS)
-    const formattedDeadline = deadline ? deadline.replace('T', ' ').replace(/\..*$/, '') : null;
-
-    const ticketNo = `TK-${Date.now()}`;
-
-    const sqlInsertTicket = `
-        INSERT INTO tickets (ticket_no, title, category, summary, resolution_path, status, assignee_id, deadline) 
-        VALUES (?, ?, ?, ?, ?, 'New', ?, ?)`;
-
-    db.query(sqlInsertTicket, [
-        ticketNo,
-        title,
-        category,
-        summary,
-        JSON.stringify(resolution_path),
-        assignee_id,
-        formattedDeadline // ใช้ตัวแปรที่แปลงฟอร์แมตแล้ว
-    ], (err, result) => {
-        if (err) {
-            console.error("Database Error:", err);
-            return res.status(500).json({ error: err.sqlMessage });
-        }
-
-        // 3. อัปเดตสถานะใน draft_tickets เป็น 'Submitted' เพื่อให้หายไปจากหน้าตาราง Draft
-        const sqlUpdateDraft = "UPDATE draft_tickets SET status = 'Submitted' WHERE id = ?";
-        db.query(sqlUpdateDraft, [draft_id], (updateErr) => {
-            if (updateErr) console.error("Update Draft Error:", updateErr);
-
-            // 4. อัปเดตสถานะใน user_requests เป็น 'ticket' เพื่อแจ้งผู้ใช้ว่ารับเรื่องแล้ว
-            db.query("UPDATE user_requests SET status = 'ticket' WHERE draft_ticket_id = ?", [draft_id]);
-
-            res.json({
-                success: true,
-                message: "Ticket approved successfully",
-                ticket_no: ticketNo
-            });
-        });
-    });
-});
 
 app.get('/api/admin/users', (req, res) => {
     const sql = `
@@ -1030,6 +1024,49 @@ app.get('/api/admin/reports', (req, res) => {
                 });
             });
         });
+    });
+});
+
+app.get('/api/ticket-history', (req, res) => {
+    // ดึงค่าจาก req.query แทน เพราะเราส่งมากับ URL แบบ ?userId=...
+    const { userId, role } = req.query; 
+
+    // เช็ค Log ดูว่าค่ามาจริงไหม
+    console.log("History Request Params:", { userId, role });
+
+    if (!userId || !role) {
+        return res.status(400).json({ message: "Missing userId or role" });
+    }
+
+    let sql = "";
+    let params = [];
+
+    if (role === 'admin') {
+        sql = `
+            SELECT th.*, u.username as performer_name 
+            FROM ticket_history th
+            LEFT JOIN users u ON th.performed_by = u.id
+            ORDER BY th.created_at DESC
+        `;
+    } else {
+        // สำหรับ User ทั่วไป (Join ตารางเพื่อเช็คว่าประวัตินี้เป็นของ Ticket ตัวเอง)
+        sql = `
+            SELECT th.*, u.username as performer_name, ot.ticket_no, ot.title
+            FROM ticket_history th
+            LEFT JOIN users u ON th.performed_by = u.id
+            INNER JOIN tickets ot ON th.ticket_id = ot.id
+            WHERE ot.follower_id = ? 
+            ORDER BY th.created_at DESC
+        `;
+        params = [userId];
+    }
+
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error("Database Error:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
     });
 });
 

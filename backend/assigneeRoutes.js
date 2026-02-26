@@ -4,62 +4,62 @@ const router = express.Router();
 
 export default (db) => {
 
-// Add a teammate (follower)
-router.post('/add-follower', (req, res) => {
-    const { ticket_id, user_id } = req.body;
-    const sql = "INSERT IGNORE INTO ticket_followers (ticket_id, user_id) VALUES (?, ?)";
-    db.query(sql, [ticket_id, user_id], (err, result) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Teammate added" });
+    // Add a teammate (follower)
+    router.post('/add-follower', (req, res) => {
+        const { ticket_id, user_id } = req.body;
+        const sql = "INSERT IGNORE INTO ticket_followers (ticket_id, user_id) VALUES (?, ?)";
+        db.query(sql, [ticket_id, user_id], (err, result) => {
+            if (err) return res.status(500).json(err);
+            res.json({ message: "Teammate added" });
+        });
     });
-});
 
-// Get all teammates for a specific ticket
-router.get('/followers/:ticketId', (req, res) => {
-    const sql = `
+    // Get all teammates for a specific ticket
+    router.get('/followers/:ticketId', (req, res) => {
+        const sql = `
         SELECT u.id, u.username, u.full_name 
         FROM ticket_followers tf
         JOIN users u ON tf.user_id = u.id
         WHERE tf.ticket_id = ?`;
-    db.query(sql, [req.params.ticketId], (err, results) => {
-        if (err) return res.status(500).json(err);
-        res.json(results);
+        db.query(sql, [req.params.ticketId], (err, results) => {
+            if (err) return res.status(500).json(err);
+            res.json(results);
+        });
     });
-});
 
-router.post('/post-comment', (req, res) => {
-    const { ticket_id, user_id, comment_text, is_internal } = req.body;
-    const type = is_internal ? 'internal' : 'public';
+    router.post('/post-comment', (req, res) => {
+        const { ticket_id, user_id, comment_text, is_internal } = req.body;
+        const type = is_internal ? 'internal' : 'public';
 
-    const sql = "INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, ?)";
-    
-    db.query(sql, [ticket_id, user_id, comment_text, type], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+        const sql = "INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, ?)";
 
-        // 🟢 ส่งอีเมลแจ้งเตือน หากเป็นคอมเมนต์สาธารณะ
-        if (type === 'public') {
-            const getTicketInfoSql = `
-                SELECT 
-                    t.ticket_no, t.title, t.follower_id,
-                    COALESCE(ur.user_email, ur2.user_email) AS user_email,
+        db.query(sql, [ticket_id, user_id, comment_text, type], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            // 🟢 ส่งอีเมลแจ้งเตือน หากเป็นคอมเมนต์สาธารณะ
+            if (type === 'public') {
+                const getTicketInfoSql = `
+                SELECT DISTINCT
+                    t.ticket_no, t.title,
+                    ur.user_email,
                     u_commenter.full_name AS commenter_name
                 FROM tickets t
+                INNER JOIN tickets_user_mapping tum ON t.id = tum.ticket_id
+                INNER JOIN user_requests ur ON tum.request_id = ur.id
                 LEFT JOIN users u_commenter ON u_commenter.id = ?
-                LEFT JOIN user_requests ur ON ur.user_id = t.follower_id
-                LEFT JOIN draft_tickets dt ON t.title = dt.title
-                LEFT JOIN draft_request_mapping drm ON dt.id = drm.draft_id
-                LEFT JOIN user_requests ur2 ON drm.request_id = ur2.id
-                WHERE t.id = ?
-                LIMIT 1
+            WHERE t.id = ?
             `;
-            db.query(getTicketInfoSql, [user_id, ticket_id], (err2, rows) => {
-                if (!err2 && rows.length > 0) {
-                    const { user_email, commenter_name, follower_id, ticket_no, title } = rows[0];
-                    
-                    // ป้องกันไม่ให้ส่งเมลแจ้งเตือนถ้า User เจ้าของตั๋วเป็นคนพิมพ์ตอบเอง
-                    if (user_email && String(follower_id) !== String(user_id)) {
-                        const commentHtml = `
-                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                db.query(getTicketInfoSql, [user_id, ticket_id], (err2, rows) => {
+                    console.log("🔍 Debug: getTicketInfoSql Result:", rows);
+                    if (!err2 && rows.length > 0) {
+                        const { ticket_no, title, commenter_name } = rows[0];
+
+                        // Loop ส่งหาทุกคนที่เชื่อมโยงกับ Ticket นี้
+                        rows.forEach(row => {
+                            // ส่งอีเมลถ้ามีที่อยู่เมล และคนคอมเมนต์ไม่ใช่เจ้าของเมลนั้น
+                            if (row.user_email) {
+                                const commentHtml = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #0dcaf0; color: #000; padding: 20px; text-align: center;">
                                 <h2 style="margin: 0; font-size: 24px;">New Message Received</h2>
                             </div>
@@ -81,46 +81,46 @@ router.post('/post-comment', (req, res) => {
                                 <p style="font-size: 15px; color: #666;">Thank you,<br/><strong style="color: #0dcaf0;">The CEiVoice Team</strong></p>
                             </div>
                         </div>`;
-                        
-                        sendNotificationEmail(user_email, `CEiVoice: New update on Ticket ${ticket_no}`, commentHtml);
+                                sendNotificationEmail(row.user_email, `CEiVoice: New update on Ticket ${ticket_no}`, commentHtml);
+                            }
+                        });
                     }
-                }
-            });
-        }
+                });
+            }
 
-        res.json({ message: "Success", id: result.insertId });
+            res.json({ message: "Success", id: result.insertId });
+        });
     });
-});
-            
 
 
 
-// EP05-ST001: Get all comments for a ticket
-router.get('/comments/:ticketId', (req, res) => {
-    const { ticketId } = req.params;
-    // We join with users to get the name of the person who commented
-    const sql = `
+
+    // EP05-ST001: Get all comments for a ticket
+    router.get('/comments/:ticketId', (req, res) => {
+        const { ticketId } = req.params;
+        // We join with users to get the name of the person who commented
+        const sql = `
         SELECT c.id, c.comment_text, c.comment_type, c.created_at, u.username, u.full_name        
         FROM comments c
         JOIN users u ON c.user_id = u.id
         WHERE c.ticket_id = ?
         ORDER BY c.created_at ASC
     `;
-    db.query(sql, [ticketId], (err, results) => {
-        if (err) return res.status(500).json(err);
-        res.json(results);
+        db.query(sql, [ticketId], (err, results) => {
+            if (err) return res.status(500).json(err);
+            res.json(results);
+        });
     });
-});
 
     // Add this inside assigneeRoutes.js
-router.get('/list-all', (req, res) => {
-    // We fetch only assignees and admins to fulfill EP04-ST004
-    const sql = "SELECT id, username, full_name FROM users WHERE role = 'assignee'";
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).json(err);
-        res.json(results);
+    router.get('/list-all', (req, res) => {
+        // We fetch only assignees and admins to fulfill EP04-ST004
+        const sql = "SELECT id, username, full_name FROM users WHERE role = 'assignee'";
+        db.query(sql, (err, results) => {
+            if (err) return res.status(500).json(err);
+            res.json(results);
+        });
     });
-});
     // 1. Get My Tasks (EP04-ST001)
     // Fetches tickets where user is Assignee or a Follower
     router.get('/my-tasks/:userId', (req, res) => {
@@ -136,7 +136,7 @@ router.get('/list-all', (req, res) => {
             JOIN ticket_followers tf ON t.id = tf.ticket_id
             LEFT JOIN users u ON t.assignee_id = u.id
             WHERE tf.user_id = ?`;
-            
+
         db.query(sql, [userId, userId], (err, results) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json(results);
@@ -147,7 +147,7 @@ router.get('/list-all', (req, res) => {
     // 2. Update Ticket Status & History (EP04-ST002, ST003, ST005)
     router.put('/update-ticket/:id', (req, res) => {
         const { id } = req.params;
-        
+
         // 🟢 เปลี่ยนจาก const เป็น let เพื่อให้เราจัดระเบียบข้อมูลก่อนลง Database ได้
         let { status, assignee_id, resolution_comment, performed_by, old_status, old_assignee_id } = req.body;
 
@@ -187,33 +187,29 @@ router.get('/list-all', (req, res) => {
             // 🟢 เงื่อนไขที่ 2: แจ้งเตือนเมื่อสถานะเปลี่ยนเป็น Solved หรือ Failed
             if (status === 'Solved' || status === 'Failed') {
                 const getEmailSql = `
-                    SELECT 
-                        COALESCE(ur.user_email, ur2.user_email) AS user_email,
-                        COALESCE(ur.message, ur2.message) AS original_message,
+                    SELECT DISTINCT
+                        ur.user_email,
+                        ur.message AS original_message,
                         t.title AS ticket_title,
                         u.full_name AS assignee_name
                     FROM tickets t
+                    INNER JOIN tickets_user_mapping tum ON t.id = tum.ticket_id
+                    INNER JOIN user_requests ur ON tum.request_id = ur.id
                     LEFT JOIN users u ON t.assignee_id = u.id
-                    LEFT JOIN user_requests ur ON ur.user_id = t.follower_id
-                    LEFT JOIN draft_tickets dt ON t.title = dt.title
-                    LEFT JOIN draft_request_mapping drm ON dt.id = drm.draft_id
-                    LEFT JOIN user_requests ur2 ON drm.request_id = ur2.id
                     WHERE t.id = ?
-                    ORDER BY ur.created_at DESC
-                    LIMIT 1
                 `;
-                
-                db.query(getEmailSql, [id], (emailErr, rows) => { 
-                    if (!emailErr && rows.length > 0 && rows[0].user_email) {
-                        const { user_email, assignee_name, original_message, ticket_title } = rows[0];
-                        
-                        const isSolved = status === 'Solved';
-                        const color = isSolved ? '#198754' : '#dc3545';
-                        const bgColor = isSolved ? '#e8f5e9' : '#f8d7da';
-                        const headerMsg = isSolved ? 'has been successfully resolved.' : 'has been marked as failed/unresolved.';
-
-                        const solvedHtmlTemplate = `
-                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                db.query(getEmailSql, [id], (emailErr, rows) => {
+                    if (!emailErr && rows.length > 0) {
+                        // Loop ส่งอีเมลแจ้งเตือนทุกคน
+                        console.log("🔍 Debug: getEmailSql Result for Status Change:", rows);
+                        rows.forEach(row => {
+                            if (row.user_email) {
+                                const { user_email, assignee_name, original_message, ticket_title } = row;
+                                const isSolved = status === 'Solved';
+                                const color = isSolved ? '#198754' : '#dc3545';
+                                const bgColor = isSolved ? '#e8f5e9' : '#f8d7da';
+                                const headerMsg = isSolved ? 'has been successfully resolved.' : 'has been marked as failed/unresolved.';
+                                const solvedHtmlTemplate = `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: ${color}; color: white; padding: 20px; text-align: center;">
                                 <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
                             </div>
@@ -238,19 +234,22 @@ router.get('/list-all', (req, res) => {
                                 <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you for using CEiVoice Support!</p>
                             </div>
                         </div>`;
-                        
-                        sendNotificationEmail(user_email, `CEiVoice: Request ${status}`, solvedHtmlTemplate);
+
+                                sendNotificationEmail(user_email, `CEiVoice: Request ${status}`, solvedHtmlTemplate);
+                            }
+                        });
                     }
                 });
+
             }
 
             res.json({ success: true });
         });
     });
 
-router.get('/history/:ticketId', (req, res) => {
-    const { ticketId } = req.params;
-    const sql = `
+    router.get('/history/:ticketId', (req, res) => {
+        const { ticketId } = req.params;
+        const sql = `
         SELECT 
             h.*, 
             u.full_name AS performer_name,
@@ -260,11 +259,11 @@ router.get('/history/:ticketId', (req, res) => {
         WHERE h.ticket_id = ?
         ORDER BY h.created_at DESC
     `;
-    db.query(sql, [ticketId], (err, results) => {
-        if (err) return res.status(500).json(err);
-        res.json(results);
+        db.query(sql, [ticketId], (err, results) => {
+            if (err) return res.status(500).json(err);
+            res.json(results);
+        });
     });
-});
 
     // 4. Post a Comment (EP05-ST002)
     router.post('/comment', (req, res) => {

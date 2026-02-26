@@ -19,6 +19,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
     const [users, setUsers] = useState([]);
     const [categories, setCategories] = useState([]);
     const [selectedDraftIds, setSelectedDraftIds] = useState([]);
+    const [historyData, setHistoryData] = useState([]);
     const viewConfigs = {
         // เดิมอาจจะเป็น ['draft', 'received', 'ticket'] ให้เปลี่ยนเป็น:
         'user-requests': ['received', 'draft', 'ticket'],
@@ -26,22 +27,24 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         'official': ['New', 'Assigned', 'Solving', 'Solved', 'Fail'],
         'users': ['admin', 'assignee', 'user'],
         'approvals': [],
-        'reports': []
+        'reports': [],
+        'history': []
     }
     // Load Data
     useEffect(() => {
-        // ดึงข้อมูลสำหรับ User ทั่วไป (ถ้ายังมีตาราง todo เดิมอยู่)
-        // fetchTodos(); 
-
-        // ถ้าเป็น Admin ให้ดึงข้อมูลจาก 3 ตารางใหม่
         if (role === 'admin') {
-            fetchAdminData(); // <--- เพิ่มการเรียกใช้งานบรรทัดนี้
-            fetchAssignees(); // ดึงรายชื่อพนักงาน (ถ้ามีฟังก์ชันนี้)
+            fetchAdminData();
+            fetchAssignees();
         }
         if (role === 'user') {
             fetchUserTickets();
         }
-    }, [role, currentView]); // ทำงานทุกครั้งที่สลับเมนู หรือมีการ Login/Logout
+
+        // เพิ่มบรรทัดนี้: ถ้ากดเมนู history ให้ดึงข้อมูลทันที
+        if (currentView === 'history') {
+            fetchHistory();
+        }
+    }, [role, currentView, userId]); // ทำงานทุกครั้งที่สลับเมนู หรือมีการ Login/Logout
 
     const handleSelectTask = (task) => {
         console.log("Selected Task for Editing:", task);
@@ -77,6 +80,17 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
             console.log(drafts);
         } catch (err) {
             console.error("Error loading admin data:", err);
+        }
+    };
+    // ฟังก์ชันดึงข้อมูลประวัติ
+    const fetchHistory = async () => {
+        try {
+            console.log("Fetching history for userId:", userId, "with role:", role);
+            const response = await fetch(`${API_URL}/ticket-history?userId=${userId}&role=${role}`);
+            const data = await response.json();
+            setHistoryData(data);
+        } catch (err) {
+            console.error("Error fetching history:", err);
         }
     };
     const convertToOfficial = async (draft) => {
@@ -436,6 +450,22 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                     onClick={() => setCurrentView('reports')}
                 >
                     <i className="bi bi-bar-chart-line me-2"></i> Reports
+                </button>
+            )}
+            {role === 'admin' && (
+                <button
+                    className={`btn text-start w-100 py-2 px-3 rounded-3 mb-2 transition-all ${currentView === 'history' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark'}`}
+                    onClick={() => setCurrentView('history')}
+                >
+                    <i className="bi bi-clock-history me-2"></i> Ticket History
+                </button>
+            )}
+            {role === 'user' && (
+                <button
+                    className={`btn text-start w-100 py-2 px-3 rounded-3 mb-2 transition-all ${currentView === 'history' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark'}`}
+                    onClick={() => setCurrentView('history')}
+                >
+                    <i className="bi bi-clock-history me-2"></i> Ticket History
                 </button>
             )}
         </div>
@@ -1166,6 +1196,78 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
                                     <div className="text-center py-5 text-muted">No configuration for this view.</div>
                                 )
                             )
+                        )}
+                        {currentView === 'history' && (
+                            <div className="card shadow-sm border-0 p-4 rounded-4 bg-white">
+                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                    <div>
+                                        <h5 className="fw-bold mb-0">
+                                            <i className="bi bi-clock-history me-2 text-primary"></i>
+                                            Ticket Activity History
+                                        </h5>
+                                        <p className="text-muted small mb-0">Track all changes and updates in the system</p>
+                                    </div>
+                                    <span className="badge bg-light text-muted border px-3 py-2 rounded-pill shadow-xs">
+                                        <i className="bi bi-eye me-1"></i> Read-Only View
+                                    </span>
+                                </div>
+
+                                <div className="table-responsive">
+                                    <table className="table table-hover align-middle border-top">
+                                        <thead>
+                                            <tr className="text-muted small uppercase">
+                                                <th className="py-3">Ticket ID</th>
+                                                <th>Action</th>
+                                                <th>Update Details</th>
+                                                <th>Performed By</th>
+                                                <th>Timestamp</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {historyData.length > 0 ? historyData.map((log) => (
+                                                <tr key={log.id}>
+                                                    <td className="fw-bold">
+                                                        <span className="text-primary">#{log.ticket_id}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`badge rounded-pill px-3 ${log.action_type === 'STATUS_CHANGE' ? 'bg-success-subtle text-success' :
+                                                            log.action_type === 'ASSIGNED' ? 'bg-info-subtle text-info' :
+                                                                'bg-warning-subtle text-warning'
+                                                            }`}>
+                                                            {log.action_type}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span className="text-muted text-decoration-line-through small">{log.old_value || 'None'}</span>
+                                                            <i className="bi bi-arrow-right text-primary"></i>
+                                                            <span className="fw-bold small">{log.new_value}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="small text-dark">
+                                                            <i className="bi bi-person-circle me-1 text-secondary"></i>
+                                                            {log.performed_by_name || `User ID: ${log.performed_by}`}
+                                                        </div>
+                                                    </td>
+                                                    <td className="small text-muted">
+                                                        {new Date(log.created_at).toLocaleString('th-TH')}
+                                                    </td>
+                                                </tr>
+                                            )) : (
+                                                <tr>
+                                                    <td colSpan="5" className="text-center py-5">
+                                                        <div className="text-muted">
+                                                            <i className="bi bi-inbox fs-2 d-block mb-2"></i>
+                                                            No activity history found.
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         )}
 
                     </div>
