@@ -343,132 +343,124 @@ app.get('/api/users/search/:username', (req, res) => {
     });
 });
 
-app.post('/api/user-requests', (req, res) => {
-    const { user_email, message, user_id } = req.body;
+app.post('/api/user-requests', async (req, res) => {
+    let { user_email, message, user_id } = req.body;
 
     if (!message) {
         return res.status(400).json({ message: "Please provide a description of your issue." });
     }
 
-    const sqlRequest = "INSERT INTO user_requests (user_id, user_email, message, status) VALUES (?, ?, ?, 'received')";
-
-    db.query(sqlRequest, [user_id, user_email, message], async (err, result) => {
-        if (err) {
-            console.error("Database Error:", err);
-            return res.status(500).json({ error: "Failed to save the request." });
+    try {
+        if (user_id) {
+            const [userRows] = await db.promise().query("SELECT email FROM users WHERE id = ?", [user_id]);
+            if (userRows.length > 0 && userRows[0].email) {
+                user_email = userRows[0].email;
+            }
         }
 
-        const requestId = result.insertId;
+        // 2. บันทึกลงตาราง user_requests
+        const sqlRequest = "INSERT INTO user_requests (user_id, user_email, message, status) VALUES (?, ?, ?, 'received')";
 
-        // 🟢 แทนที่โค้ดส่งอีเมลเดิมด้วยชุดนี้
-        const receivedHtmlTemplate = `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
-                <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
-            </div>
-            <div style="padding: 30px; background-color: #ffffff;">
-                <p style="font-size: 16px; color: #333;">Hello,</p>
-                <p style="font-size: 16px; color: #333;">We have received your support request.</p>
-                
-                <div style="background-color: #fff8e1; border-left: 5px solid #ffc107; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-                    <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: #d39e00;">⏳ Waiting for Review</span></h3>
-                    <hr style="border: 0; border-top: 1px solid #ffe082; margin: 15px 0;">
-                    <p style="margin-bottom: 5px; color: #555; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;"><strong>Issue Details:</strong></p>
-                    <p style="margin-top: 0; color: #333; font-size: 16px; font-style: italic;">"${message}"</p>
+        db.query(sqlRequest, [user_id || null, user_email || null, message], async (err, result) => {
+            if (err) {
+                console.error("Database Error:", err);
+                return res.status(500).json({ error: "Failed to save the request." });
+            }
+
+            const requestId = result.insertId;
+
+            // 🟢 3. ส่งอีเมลรับเรื่อง "เฉพาะ" กรณีที่ user_email มีค่าเท่านั้น 
+            if (user_email) {
+                const receivedHtmlTemplate = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                        <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+                    </div>
+                    <div style="padding: 30px; background-color: #ffffff;">
+                        <p style="font-size: 16px; color: #333;">Hello,</p>
+                        <p style="font-size: 16px; color: #333;">We have received your request.</p>
+                        
+                        <div style="background-color: #fff8e1; border-left: 5px solid #ffc107; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                            <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: #d39e00;">⏳ Waiting for Review</span></h3>
+                            <hr style="border: 0; border-top: 1px solid #ffe082; margin: 15px 0;">
+                            <p style="margin-bottom: 5px; color: #555; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;"><strong>Issue Details:</strong></p>
+                            <p style="margin-top: 0; color: #333; font-size: 16px; font-style: italic;">"${message}"</p>
+                        </div>
+                        
+                        <p style="font-size: 15px; color: #666;">We will notify you once an assignee reviews and resolves your request.</p>
+                        <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
+                    </div>
                 </div>
-                
-                <p style="font-size: 15px; color: #666;">We will notify you once an assignee reviews and resolves your request.</p>
-                <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
-            </div>
-        </div>
-        `;
+                `;
 
-        sendNotificationEmail(
-            user_email,
-            "CEiVoice: Request Received",
-            receivedHtmlTemplate
-        );
+                sendNotificationEmail(user_email, "CEiVoice: Request Received", receivedHtmlTemplate);
+            }
 
-        try {
-            // 1. ดึงรายชื่อ Assignee ทั้งหมดพร้อมทักษะ (Expertise)
-            const getAssigneesSql = `
-                SELECT 
-                    u.id, 
-                    u.full_name, 
-                    GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS expertise
-                FROM users u
-                INNER JOIN user_skills us ON u.id = us.user_id
-                INNER JOIN categories c ON us.category_id = c.id
-                LEFT JOIN draft_tickets dt ON u.id = dt.assigned_to
-                WHERE u.role = 'assignee' 
-                AND dt.assigned_to IS NULL
-                GROUP BY u.id
-            `;
+            try {
+                const getAssigneesSql = `
+                    SELECT u.id, u.full_name, GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS expertise
+                    FROM users u
+                    INNER JOIN user_skills us ON u.id = us.user_id
+                    INNER JOIN categories c ON us.category_id = c.id
+                    LEFT JOIN draft_tickets dt ON u.id = dt.assigned_to
+                    WHERE u.role = 'assignee' AND dt.assigned_to IS NULL
+                    GROUP BY u.id
+                `;
 
-            db.query(getAssigneesSql, async (assigneeErr, assigneesList) => {
-                if (assigneeErr) return console.error("Error fetching assignees:", assigneeErr);
-                const existingDrafts = await new Promise((resolve, reject) => {
-                    db.query("SELECT id, title, summary FROM draft_tickets WHERE status = 'Draft'", (err, rows) => {
-                        if (err) reject(err); resolve(rows);
+                db.query(getAssigneesSql, async (assigneeErr, assigneesList) => {
+                    if (assigneeErr) return console.error("Error fetching assignees:", assigneeErr);
+                    const existingDrafts = await new Promise((resolve, reject) => {
+                        db.query("SELECT id, title, summary FROM draft_tickets WHERE status = 'Draft'", (err, rows) => {
+                            if (err) reject(err); resolve(rows);
+                        });
                     });
-                });
-                // 2. ส่ง message และ รายชื่อพนักงานไปให้ AI (อย่าลืมแก้ generateSupportTicket ให้รับ parameter เพิ่ม)
-                const ticket = await generateSupportTicket(message, assigneesList, existingDrafts);
-                //console.log(assigneesList);
-                console.log("AI Suggested Ticket:", ticket);
-                // 3. หา ID ของคนที่ AI เลือกมา (เปรียบเทียบจากชื่อที่ AI คืนกลับมาใน ticket.assignee_category_id)
-                const suggestedAssigneeId = ticket.assignee_category_id[0];
+                    
+                    const ticket = await generateSupportTicket(message, assigneesList, existingDrafts);
+                    console.log("AI Suggested Ticket:", ticket);
+                    
+                    const suggestedAssigneeId = ticket.assignee_category_id[0];
+                    const findCategorySql = "SELECT id FROM categories WHERE name = ? LIMIT 1";
 
+                    db.query(findCategorySql, [ticket.category], (catErr, catResults) => {
+                        const categoryId = (!catErr && catResults.length > 0) ? catResults[0].id : null;
+                        const resolutionPath = JSON.stringify(ticket.suggestedSolution);
 
-                // 4. หา ID ของหมวดหมู่ (Category) จากชื่อที่ AI แนะนำมา
-                const findCategorySql = "SELECT id FROM categories WHERE name = ? LIMIT 1";
+                        const sqlDraft = `
+                            INSERT INTO draft_tickets (title, category, summary, resolution_path, suggested_assignees,assigned_to, status, created_by_ai,ai_suggested_merge_id) 
+                            VALUES (?, ?, ?, ?, ?, ?, 'Draft', 1, ?)`;
+                        
+                        db.query(sqlDraft, [ticket.title, ticket.category, ticket.summary, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
+                            if (draftErr) return console.error("Draft Insert Error:", draftErr);
 
-                db.query(findCategorySql, [ticket.category], (catErr, catResults) => {
-                    const categoryId = (!catErr && catResults.length > 0) ? catResults[0].id : null;
-                    const resolutionPath = JSON.stringify(ticket.suggestedSolution);
+                            const draftId = draftResult.insertId;
+                            const mappingQuery = "INSERT INTO draft_request_mapping (draft_id, request_id) VALUES (?, ?)";
+                            const updateRequestQuery = "UPDATE user_requests SET draft_ticket_id = ?, status = 'draft' WHERE id = ?";
 
-                    // 5. บันทึกลง draft_tickets พร้อม Assignee ID และ Category ID
-                    const sqlDraft = `
-                        INSERT INTO draft_tickets (title, category, summary, resolution_path, suggested_assignees,assigned_to, status, created_by_ai,ai_suggested_merge_id) 
-                        VALUES (?, ?, ?, ?, ?, ?, 'Draft', 1, ?)`;
-                    console.log("Inserting Draft Ticket with:", [ticket.title, ticket.category, ticket.summary, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id]);
-                    db.query(sqlDraft, [ticket.title, ticket.category, ticket.summary, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
-                        if (draftErr) {
-                            console.error("Draft Insert Error:", draftErr);
-                            return;
-                        }
-
-                        const draftId = draftResult.insertId;
-
-                        // ทำ 2 อย่างพร้อมกัน: Mapping และ Update Status
-                        const mappingQuery = "INSERT INTO draft_request_mapping (draft_id, request_id) VALUES (?, ?)";
-                        const updateRequestQuery = "UPDATE user_requests SET draft_ticket_id = ?, status = 'draft' WHERE id = ?";
-
-                        // รันคำสั่ง Mapping
-                        db.query(mappingQuery, [draftId, requestId], (mErr) => {
-                            if (mErr) console.error("Mapping Fail:", mErr);
-
-                            // รันคำสั่ง Update Status
-                            db.query(updateRequestQuery, [draftId, requestId], (uErr) => {
-                                if (uErr) console.error("Update Status Fail:", uErr);
-                                console.log("--- All Processes Completed for Request:", requestId, "---");
+                            db.query(mappingQuery, [draftId, requestId], (mErr) => {
+                                if (mErr) console.error("Mapping Fail:", mErr);
+                                db.query(updateRequestQuery, [draftId, requestId], (uErr) => {
+                                    if (uErr) console.error("Update Status Fail:", uErr);
+                                    console.log("--- All Processes Completed for Request:", requestId, "---");
+                                });
                             });
                         });
                     });
                 });
+
+            } catch (aiErr) {
+                console.error("AI Analysis failed:", aiErr);
+            }
+
+            res.status(201).json({
+                success: true,
+                message: "Request submitted successfully. AI is drafting your ticket.",
+                request_id: requestId
             });
-
-        } catch (aiErr) {
-            console.error("AI Analysis failed:", aiErr);
-        }
-
-        // ส่ง Response กลับทันทีเพื่อให้ User ไม่ต้องรอนาน
-        res.status(201).json({
-            success: true,
-            message: "Request submitted successfully. AI is drafting your ticket.",
-            request_id: requestId
         });
-    });
+    } catch (err) {
+        console.error("Server Error:", err);
+        return res.status(500).json({ error: "Internal Server Error." });
+    }
 });
 
 app.post('/api/admin/unlink-request', async (req, res) => {
@@ -719,7 +711,7 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
                     <p style="font-size: 16px; color: #333;">Your request has been reviewed and officially converted into a Support Ticket.</p>
                     
                     <div style="background-color: #e2e3e5; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                        <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ticket No: <span style="color: #0d6efd;">${ticketNo}</span></h3>
+                        <h3 style="margin-top: 0; color: #333; font-size: 17px;">Ticket No: <span style="color: #0d6efd;">${ticketNo}</span></h3>
                         <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Topic:</strong> ${title}</p>
                         <p style="margin-top: 0; color: #555; font-size: 14px;"><strong>Status:</strong> New</p>
                     </div>
@@ -984,6 +976,31 @@ app.put('/api/admin/approve-user/:id', (req, res) => {
     const sql = "UPDATE users SET is_approved = 1 WHERE id = ?";
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).send(err);
+
+        db.query("SELECT full_name, email FROM users WHERE id = ?", [id], (fetchErr, rows) => {
+            if (!fetchErr && rows.length > 0) {
+                const userEmail = rows[0].email;
+                const fullName = rows[0].full_name;
+
+                if (userEmail) {
+                    const approvedHtml = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 24px;">Account Approved</h2>
+                        </div>
+                        <div style="padding: 30px; background-color: #ffffff;">
+                            <p style="font-size: 16px; color: #333;">Hello <strong>${fullName}</strong>,</p>
+                            <p style="font-size: 16px; color: #333;">Great news! Your Assignee 👩🏻‍💻 account has been approved by the Administrator.</p>
+                            <p style="font-size: 16px; color: #333;">You can now log in to the CEiVoice system and start managing support tickets.</p>
+                            <p style="font-size: 15px; color: #666; margin-top: 30px;">Welcome to the team,<br/><strong style="color: #198754;">The CEiVoice Team</strong></p>
+                        </div>
+                    </div>`;
+                    
+                    sendNotificationEmail(userEmail, "CEiVoice: Account Approved", approvedHtml);
+                }
+            }
+        });
+
         res.json({ message: "User approved successfully" });
     });
 });

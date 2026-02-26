@@ -65,17 +65,17 @@ router.post('/post-comment', (req, res) => {
                             </div>
                             <div style="padding: 30px; background-color: #ffffff;">
                                 <p style="font-size: 16px; color: #333;">Hello,</p>
-                                <p style="font-size: 16px; color: #333;">You have a new reply on your support ticket:</p>
+                                <p style="font-size: 16px; color: #333;">You have a new reply 💬 on your request:</p>
                                 
                                 <div style="background-color: #e9ecef; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 5px solid #0dcaf0;">
-                                    <p style="margin: 0; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase;">Ticket ID: ${ticket_no}</p>
+                                    <p style="margin: 0; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase;">ID: ${ticket_no}</p>
                                     <p style="margin: 8px 0 0 0; font-size: 18px; color: #212529; font-weight: bold;">${title}</p>
                                 </div>
                                 
                                 <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 20px; margin: 25px 0; border-radius: 6px;">
                                     <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>From:</strong> ${commenter_name}</p>
                                     <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
-                                    <p style="margin-top: 0; color: #333; font-size: 16px; white-space: pre-wrap;">"${comment_text}"</p>
+                                    <p style="margin-top: 0; color: #333; font-size: 16px; white-space: pre-wrap;">${comment_text}</p>
                                 </div>
                                 
                                 <p style="font-size: 15px; color: #666;">Thank you,<br/><strong style="color: #0dcaf0;">The CEiVoice Team</strong></p>
@@ -210,6 +210,7 @@ router.get('/list-all', (req, res) => {
                         const isSolved = status === 'Solved';
                         const color = isSolved ? '#198754' : '#dc3545';
                         const bgColor = isSolved ? '#e8f5e9' : '#f8d7da';
+                        const headerEmoji = isSolved ? '✅' : '❌';
                         const headerMsg = isSolved ? 'has been successfully resolved.' : 'has been marked as failed/unresolved.';
 
                         const solvedHtmlTemplate = `
@@ -228,7 +229,7 @@ router.get('/list-all', (req, res) => {
                                 </div>
                                 
                                 <div style="background-color: ${bgColor}; border-left: 5px solid ${color}; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-                                    <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: ${color};">${status}</span></h3>
+                                    <h3 style="margin-top: 0; color: #333; font-size: 18px;">Status: <span style="color: ${color};">${status} ${headerEmoji}</span></h3>
                                     <p style="color: #555; font-size: 15px;"><strong>Handled by:</strong> ${assignee_name || 'CEiVoice Assignee'}</p>
                                     <hr style="border: 0; border-top: 1px solid ${color}; opacity: 0.3; margin: 15px 0;">
                                     <p style="margin-bottom: 5px; color: #555; font-size: 14px; text-transform: uppercase;"><strong>Resolution Note:</strong></p>
