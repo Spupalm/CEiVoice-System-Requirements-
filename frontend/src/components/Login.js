@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-export default function Login01({ onLogin }) {
+export default function Login({ onLogin }) {
   const [isRegister, setIsRegister] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 

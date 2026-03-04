@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Login01 from './components/Login01';
+import Login from './components/Login';
 import DashBoard from './components/AdminPage';
 import UserPage from './components/Userpage';
 import CreateNewAdmin from './components/CreateNewAdmin';
@@ -7,7 +7,7 @@ import './App.css';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [page, setPage] = useState('Login01');
+  const [page, setPage] = useState('Login');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [profileImage, setProfileImage] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -50,11 +50,11 @@ function App() {
     setCurrentUserId(null);
     setUserEmail('');
     setUserRole('');
-    setPage('Login01');
+    setPage('Login');
   };
 
   const renderPage = () => {
-    if (!currentUser) return <Login01 onLogin={handleLogin} />;
+    if (!currentUser) return <Login onLogin={handleLogin} />;
 
     // Admin routes
     if (userRole === 'admin') {
