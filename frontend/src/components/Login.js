@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, goToSignUp }) {
   const [isRegister, setIsRegister] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -16,27 +16,6 @@ export default function Login({ onLogin }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // ─── Role-aware login handler ───────────────────────────────────────────────
-  // After a successful login, this checks if the user navigated to /admin
-  // (or any admin route) without being an admin, and boots them out.
-  const handleLogin = (username, profileImage, id, role, email) => {
-    // If the user is on an admin path but their role is not admin, redirect them.
-    const isOnAdminPath = window.location.pathname.startsWith('/admin');
-    if (isOnAdminPath && role !== 'admin') {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to access the admin area.',
-        icon: 'error',
-        confirmButtonText: 'Go to Dashboard',
-        confirmButtonColor: '#F36601',
-      }).then(() => {
-        window.location.href = '/dashboard'; // redirect non-admins away
-      });
-      return;
-    }
-    onLogin(username, profileImage, id, role, email);
-  };
 
   return (
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
@@ -56,14 +35,19 @@ export default function Login({ onLogin }) {
           background: "rgba(0,0,0,0.3)", backdropFilter: "blur(10px)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}>
-            <img src="/Ceiwhitelogo.png" alt="Logo" style={{ width: "45px", height: "39.85px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))", objectFit: "contain" }} />
-            <span style={{ fontFamily: "'Hammersmith One', sans-serif", fontSize: "24px", color: "#fff", fontWeight: "400", whiteSpace: "nowrap", lineHeight: "1", paddingBottom: "2px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))" }}>Voice System</span>
+            <img src="/cei_logo.png" alt="Logo" style={{ width: "45px", height: "39.85px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))", objectFit: "contain" }} />
+            <span style={{ fontFamily: "'Hammersmith One', sans-serif", fontSize: "24px", color: "#fff", fontWeight: "400", whiteSpace: "nowrap", lineHeight: "1", paddingBottom: "2px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))" }}>CEI Todo</span>
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: "2rem" }}>
-              <span style={{ color: "#fff", fontSize: "0.95rem", fontWeight: 500, cursor: "pointer", opacity: 0.8 }}>Home</span>
-              <span onClick={() => setIsRegister(false)} style={{ color: !isRegister ? "#FFB000" : "#fff", fontWeight: !isRegister ? "bold" : 500, fontSize: "0.95rem", cursor: "pointer" }}>Login</span>
-              <span onClick={() => setIsRegister(true)} style={{ color: isRegister ? "#FFB000" : "#fff", fontWeight: isRegister ? "bold" : 500, fontSize: "0.95rem", cursor: "pointer" }}>Register</span>
+              <span
+                onClick={() => setIsRegister(false)}
+                style={{ color: !isRegister ? "#FFB000" : "#fff", fontWeight: !isRegister ? "bold" : 500, fontSize: "0.95rem", cursor: "pointer" }}
+              >Login</span>
+              <span
+                onClick={() => setIsRegister(true)}
+                style={{ color: isRegister ? "#FFB000" : "#fff", fontWeight: isRegister ? "bold" : 500, fontSize: "0.95rem", cursor: "pointer" }}
+              >Register</span>
             </div>
           )}
         </nav>
@@ -94,18 +78,34 @@ export default function Login({ onLogin }) {
 
             {/* LOGIN PANEL */}
             <div style={{ width: "100vw", height: "100vh", flexShrink: 0, display: "flex", flexDirection: isMobile ? "column" : "row" }}>
-              <div style={{ flex: isMobile ? "0 0 40%" : 1, backgroundImage: 'url("https://i.pinimg.com/1200x/d4/32/30/d4323062065c96e06e794370cfc01571.jpg")', backgroundSize: "cover", backgroundPosition: "center" }} />
-              <div style={{ flex: isMobile ? "0 0 60%" : 1, background: "linear-gradient(135deg, #FFD88E 0%, #FFB000 10%, #F36601 20%, #530A0A 45%, #000000 100%)", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto" }}>
-                <LoginForm onLogin={handleLogin} goToSignUp={() => setIsRegister(true)} />
+              <div style={{
+                flex: isMobile ? "0 0 40%" : 1,
+                backgroundImage: 'url("https://i.pinimg.com/1200x/d4/32/30/d4323062065c96e06e794370cfc01571.jpg")',
+                backgroundSize: "cover", backgroundPosition: "center"
+              }} />
+              <div style={{
+                flex: isMobile ? "0 0 60%" : 1,
+                background: "linear-gradient(135deg, #FFD88E 0%, #FFB000 10%, #F36601 20%, #530A0A 45%, #000000 100%)",
+                display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto"
+              }}>
+                <LoginForm onLogin={onLogin} goToSignUp={() => setIsRegister(true)} />
               </div>
             </div>
 
             {/* REGISTER PANEL */}
             <div style={{ width: "100vw", height: "100vh", flexShrink: 0, display: "flex", flexDirection: isMobile ? "column" : "row" }}>
-              <div style={{ flex: isMobile ? "0 0 60%" : 1, background: "linear-gradient(135deg, #FFD88E 0%, #FFB000 10%, #F36601 20%, #530A0A 45%, #000000 100%)", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto" }}>
+              <div style={{
+                flex: isMobile ? "0 0 60%" : 1,
+                background: "linear-gradient(135deg, #FFD88E 0%, #FFB000 10%, #F36601 20%, #530A0A 45%, #000000 100%)",
+                display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto"
+              }}>
                 <SignUpForm onSuccess={() => setIsRegister(false)} goToLogIn={() => setIsRegister(false)} />
               </div>
-              <div style={{ flex: isMobile ? "0 0 40%" : 1, backgroundImage: 'url("https://i.pinimg.com/1200x/d4/32/30/d4323062065c96e06e794370cfc01571.jpg")', backgroundSize: "cover", backgroundPosition: "center" }} />
+              <div style={{
+                flex: isMobile ? "0 0 40%" : 1,
+                backgroundImage: 'url("https://i.pinimg.com/1200x/d4/32/30/d4323062065c96e06e794370cfc01571.jpg")',
+                backgroundSize: "cover", backgroundPosition: "center"
+              }} />
             </div>
 
           </div>
@@ -153,14 +153,6 @@ function LoginForm({ onLogin, goToSignUp }) {
         handleLoginFail();
         return;
       }
-
-      // ── Role gate: block non-admins from the admin area ──────────────────
-      if (window.location.pathname.startsWith('/admin') && data.user.role !== 'admin') {
-        setError('Access denied. Admin accounts only.');
-        handleLoginFail();
-        return;
-      }
-
       localStorage.setItem('todo_user_id', data.user.id);
       localStorage.setItem('todo_username', data.user.username);
       localStorage.setItem('todo_profile', data.user.profileImage);
@@ -183,12 +175,6 @@ function LoginForm({ onLogin, goToSignUp }) {
       });
       const data = await response.json();
       if (response.ok) {
-        // ── Role gate for Google login too ───────────────────────────────
-        if (window.location.pathname.startsWith('/admin') && data.user.role !== 'admin') {
-          setError('Access denied. Admin accounts only.');
-          return;
-        }
-
         localStorage.setItem('todo_user_id', data.user.id);
         localStorage.setItem('todo_username', data.user.username);
         localStorage.setItem('todo_profile', data.user.profileImage || '');
@@ -203,21 +189,38 @@ function LoginForm({ onLogin, goToSignUp }) {
     }
   };
 
+  const handleGoogleError = () => {
+    setError("Google Login Failed. Please try again.");
+  };
+
   return (
-    <div style={{ width: "90%", maxWidth: "400px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)" }}>
-      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0 }}>USER LOGIN</h2>
-      <p style={{ color: "#DADADA", fontSize: "1rem", marginBottom: "2rem" }}>Welcome back to CeiVoice</p>
+    <div style={{ width: "90%", maxWidth: "420px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)", margin: "100px 0 20px 0" }}>
+      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, fontWeight: "800" }}>WELCOME BACK</h2>
+      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Sign in to your CEI Todo account to continue.</p>
 
       {error && <p style={errorStyle}>{error}</p>}
 
-      <label style={labelStyle}>User Name</label>
-      <input value={username} onChange={e => setUsername(e.target.value)} style={inputStyle} placeholder="Your User Name" />
+      <label style={labelStyle}>Username</label>
+      <input
+        value={username}
+        onChange={e => setUsername(e.target.value)}
+        style={inputStyle}
+        placeholder="e.g. Rick Astley"
+        onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
+      />
 
       <label style={labelStyle}>Password</label>
-      <div style={{ position: "relative" }}>
-        <input value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type={showPassword ? "text" : "password"} placeholder="Your Password" />
-        <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 15, top: 14, color: "#999", cursor: "pointer" }}>
-          {showPassword ? <FiEye /> : <FiEyeOff />}
+      <div style={{ position: "relative", marginBottom: "1.2rem" }}>
+        <input
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 0, paddingRight: "2.5rem" }}
+          type={showPassword ? "text" : "password"}
+          placeholder="Minimum 8 characters"
+          onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
+        />
+        <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 15, top: "50%", transform: "translateY(-50%)", color: "#999", cursor: "pointer" }}>
+          {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
         </div>
       </div>
 
@@ -227,29 +230,41 @@ function LoginForm({ onLogin, goToSignUp }) {
         theme="dark"
         onChange={token => setCaptchaToken(token)}
         onExpired={() => setCaptchaToken(null)}
-        style={{ marginBottom: "1.5rem", transform: "scale(0.85)", transformOrigin: "0 0" }}
+        style={{ marginBottom: "1.2rem", transform: "scale(0.85)", transformOrigin: "0 0" }}
       />
 
       <button onClick={handleSubmit} style={btnStyle}>LOGIN</button>
 
-      <div style={{ textAlign: "center", margin: "1rem 0", color: "#fff", opacity: 0.8 }}>OR</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
+        <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.2)" }} />
+        <span style={{ color: "#DADADA", fontSize: "0.8rem" }}>or</span>
+        <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.2)" }} />
+      </div>
 
-      <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google Login Failed. Please try again.")} />
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+          shape="pill"
+          theme="outline"
+        />
+      </div>
 
       <p style={{ color: "#fff", textAlign: "center", marginTop: "1.5rem", fontSize: "0.85rem" }}>
         Don't have an account?{" "}
-        <span onClick={goToSignUp} style={{ color: "#FFB000", cursor: "pointer", fontWeight: "bold" }}>Register</span>
+        <span onClick={goToSignUp} style={{ color: "#FFB000", cursor: "pointer", fontWeight: "bold" }}>Create one</span>
       </p>
     </div>
   );
 }
 
-// ── SIGNUP FORM ───────────────────────────────────────────────────────────────
+// ── SIGN UP FORM ──────────────────────────────────────────────────────────────
 function SignUpForm({ onSuccess, goToLogIn }) {
   const recaptchaRef = useRef(null);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('user');
   const [profileImage, setProfileImage] = useState(null);
   const [error, setError] = useState('');
@@ -257,7 +272,6 @@ function SignUpForm({ onSuccess, goToLogIn }) {
   const [captchaToken, setCaptchaToken] = useState(null);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
-  const [email, setEmail] = useState('');
 
   const handleLoginFail = () => {
     setCaptchaToken(null);
@@ -266,7 +280,6 @@ function SignUpForm({ onSuccess, goToLogIn }) {
 
   useEffect(() => {
     fetch(`${API_URL}/categories`)
-      .then(res => { if (!res.ok) throw new Error("categories failed"); return res; })
       .then(res => res.json())
       .then(data => setAvailableCategories(data))
       .catch(() => {});
@@ -292,6 +305,10 @@ function SignUpForm({ onSuccess, goToLogIn }) {
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');
       handleLoginFail();
+      return;
+    }
+    if (!captchaToken) {
+      setError('Please verify that you are not a robot.');
       return;
     }
     if (role === 'assignee' && selectedSkills.length === 0) {
@@ -328,7 +345,7 @@ function SignUpForm({ onSuccess, goToLogIn }) {
           text: 'Your account has been created. However, an administrator must approve your account before you can log in.',
           icon: 'info',
           confirmButtonText: 'Go to Login',
-          confirmButtonColor: '#0d6efd',
+          confirmButtonColor: '#F36601',
         }).then(() => goToLogIn());
       } else {
         Swal.fire({
@@ -347,32 +364,52 @@ function SignUpForm({ onSuccess, goToLogIn }) {
   return (
     <div style={{ width: "90%", maxWidth: "420px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)", margin: "80px 0 20px 0" }}>
       <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, fontWeight: "800" }}>CREATE ACCOUNT</h2>
-      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Create your account and experience smarter, faster support with CEiVoice.</p>
+      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Join CEI Todo and manage your tasks efficiently.</p>
 
       {error && <p style={errorStyle}>{error}</p>}
 
       <label style={labelStyle}>Full Name</label>
-      <input value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} placeholder="Your Full Name" />
+      <input value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} placeholder="e.g. Rick Astley" />
 
       <label style={labelStyle}>Username</label>
-      <input value={username} onChange={e => setUsername(e.target.value)} style={inputStyle} placeholder="Your Username" />
+      <input value={username} onChange={e => setUsername(e.target.value)} style={inputStyle} placeholder="e.g. rick_astley" />
 
-      <label style={labelStyle}>Email</label>
-      <input value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} placeholder="Your Email" type="email" />
+      <label style={labelStyle}>Email <span style={{ color: "#999", textTransform: "none", fontWeight: "normal" }}>(optional — for notifications)</span></label>
+      <input value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} placeholder="e.g. rick@example.com" type="email" />
 
       <label style={labelStyle}>Password</label>
-      <div style={{ position: "relative" }}>
-        <input value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type={showPassword ? "text" : "password"} placeholder="Min. 8 characters" />
-        <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 15, top: 14, color: "#999", cursor: "pointer" }}>
-          {showPassword ? <FiEye /> : <FiEyeOff />}
+      <div style={{ position: "relative", marginBottom: "1.2rem" }}>
+        <input
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 0, paddingRight: "2.5rem" }}
+          type={showPassword ? "text" : "password"}
+          placeholder="Minimum 8 characters"
+        />
+        <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 15, top: "50%", transform: "translateY(-50%)", color: "#999", cursor: "pointer" }}>
+          {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
         </div>
       </div>
 
-      <label style={labelStyle}>Role</label>
-      <select value={role} onChange={e => setRole(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-        <option value="user">User</option>
-        <option value="assignee">Assignee</option>
-      </select>
+      <label style={labelStyle}>Register as</label>
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.2rem" }}>
+        {['user', 'assignee'].map(r => (
+          <div
+            key={r}
+            onClick={() => setRole(r)}
+            style={{
+              flex: 1, padding: "0.6rem", borderRadius: "10px", cursor: "pointer", textAlign: "center",
+              fontSize: "0.9rem", fontWeight: 600,
+              background: role === r ? "#F36601" : "rgba(255,255,255,0.1)",
+              color: "#fff",
+              border: role === r ? "1px solid #F36601" : "1px solid rgba(255,255,255,0.2)",
+              transition: "all 0.2s",
+            }}
+          >
+            {r === 'user' ? 'User (Client)' : 'Assignee (Worker)'}
+          </div>
+        ))}
+      </div>
 
       {role === 'assignee' && availableCategories.length > 0 && (
         <>
@@ -396,7 +433,7 @@ function SignUpForm({ onSuccess, goToLogIn }) {
         </>
       )}
 
-      <label style={labelStyle}>Profile Image (optional)</label>
+      <label style={labelStyle}>Profile Image <span style={{ color: "#999", textTransform: "none", fontWeight: "normal" }}>(optional)</span></label>
       <input
         type="file" accept="image/*"
         onChange={e => setProfileImage(e.target.files[0])}
@@ -405,11 +442,11 @@ function SignUpForm({ onSuccess, goToLogIn }) {
 
       <ReCAPTCHA
         ref={recaptchaRef}
-        sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+        sitekey="6LeQBlssAAAAAFZTj22xDHurWEaMtcsTyngKlH4H"
         theme="dark"
         onChange={token => setCaptchaToken(token)}
         onExpired={() => setCaptchaToken(null)}
-        style={{ marginBottom: "1.5rem", transform: "scale(0.85)", transformOrigin: "0 0" }}
+        style={{ marginBottom: "1.2rem", transform: "scale(0.85)", transformOrigin: "0 0" }}
       />
 
       <button onClick={handleSubmit} style={btnStyle}>CREATE ACCOUNT</button>

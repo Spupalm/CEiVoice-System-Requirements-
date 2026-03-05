@@ -145,6 +145,7 @@ return (
     color: #dc3545 !important; 
     font-weight: bold; 
 }
+.modal-backdrop { display: none !important; }
         `}</style>
 
 
