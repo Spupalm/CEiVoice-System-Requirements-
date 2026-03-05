@@ -811,8 +811,10 @@ app.get('/api/users/:userId/tickets', (req, res) => {
             ur.status AS request_status, 
             ur.created_at,
             dt.title AS ai_title,
+            t.id AS official_ticket_id,
             t.status AS official_status,
-            t.ticket_no
+            t.ticket_no,
+            t.resolution_comment
         FROM user_requests ur
         LEFT JOIN draft_tickets dt ON ur.draft_ticket_id = dt.id
         LEFT JOIN tickets t ON (t.title = dt.title AND ur.status = 'ticket')
@@ -1048,6 +1050,36 @@ app.get('/api/admin/reports', (req, res) => {
                 });
             });
         });
+    });
+});
+
+// 🟢 1. API ดึงคอมเมนต์ของตั๋ว (สำหรับหน้าเว็บฝั่ง User)
+app.get('/api/tickets/:id/comments', (req, res) => {
+    const { id } = req.params;
+    // กรองเอาเฉพาะ Public Comment และเปลี่ยนชื่อตัวแปรให้ตรงกับที่หน้าเว็บ User ต้องการ (message)
+    const sql = `
+        SELECT c.id, c.comment_text AS message, c.created_at, 
+               u.full_name AS user_name, u.email AS user_email, u.profile_image
+        FROM comments c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.ticket_id = ? AND c.comment_type = 'Public'
+        ORDER BY c.created_at ASC
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
+// 🟢 2. API โพสต์คอมเมนต์ใหม่ (สำหรับหน้าเว็บฝั่ง User)
+app.post('/api/tickets/:id/comments', (req, res) => {
+    const { id } = req.params;
+    const { user_id, message } = req.body;
+    // บังคับให้คอมเมนต์จาก User เป็น Public เสมอ
+    const sql = "INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, 'Public')";
+    db.query(sql, [id, user_id, message], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: result.insertId });
     });
 });
 

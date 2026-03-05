@@ -163,19 +163,28 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
     if (!ticket) return;
     const reqStatus = ticket.request_status || ticket.status;
     const requestId = ticket.request_id || ticket.id;
+    
     if (reqStatus === 'ticket') {
       fetch(`${API_URL}/admin/official-tickets`).then(r => r.ok ? r.json() : []).then(list => {
+        
+        // 🟢 FIX: เพิ่มการค้นหาจาก official_ticket_id กลับเข้าไป (โค้ดเก่าของคุณโดนทับไป)
         const found = Array.isArray(list) ? list.find(tk =>
+          tk.id === ticket.official_ticket_id || 
+          (ticket.ticket_no && tk.ticket_no === ticket.ticket_no) ||
           tk.request_id === requestId || tk.user_request_id === requestId ||
           (tk.linked_requests && tk.linked_requests.some(r => String(r.id) === String(requestId)))
         ) : null;
-        if (found) {
-          setFullTicket(found);
-          const tkId = found.id || found.ticket_id;
+        
+        // 🟢 FIX: บังคับให้โหลดข้อมูล Comment ทันทีถ้ามี official_ticket_id 
+        if (found || ticket.official_ticket_id) {
+          const matchedTicket = found || ticket;
+          setFullTicket(matchedTicket);
+          const tkId = matchedTicket.id || matchedTicket.official_ticket_id || matchedTicket.ticket_id;
+          
           if (tkId) {
             setLoadingComments(true);
             fetch(`${API_URL}/tickets/${tkId}/comments`).then(r => r.ok ? r.json() : []).then(d => { setComments(Array.isArray(d) ? d : []); setLoadingComments(false); }).catch(() => setLoadingComments(false));
-            fetch(`${API_URL}/ticket-history?ticketId=${tkId}`).then(r => r.ok ? r.json() : []).then(d => setHistory(Array.isArray(d) ? d : [])).catch(() => {});
+            fetch(`${API_URL}/assignee/history/${tkId}`).then(r => r.ok ? r.json() : []).then(d => setHistory(Array.isArray(d) ? d : [])).catch(() => {});
           }
         } else { setLoadingComments(false); }
       }).catch(() => setLoadingComments(false));
@@ -186,9 +195,38 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
         if (found) setFullTicket(found);
       }).catch(() => {});
     }
-  }, [ticket?.request_id, ticket?.id, ticket?.request_status, ticket?.status]);
+  }, [ticket?.request_id, ticket?.id, ticket?.request_status, ticket?.status, ticket?.official_ticket_id, ticket?.ticket_no]);
 
-  useEffect(() => { commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [comments]);
+  // 🟢 แก้ไขระบบเลื่อนจอ ให้เลื่อนเฉพาะตอนที่มี "ข้อความเพิ่มขึ้น" เท่านั้น
+  useEffect(() => { 
+      commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); 
+  }, [comments.length]);
+
+  // 🟢 ระบบ Auto-Refresh ดึงแชทและประวัติแบบ Real-time ฝั่ง User
+  useEffect(() => {
+      const tkId = fullTicket?.id || fullTicket?.ticket_id || ticket?.official_ticket_id;
+      if (!tkId) return;
+
+      const interval = setInterval(() => {
+          fetch(`${API_URL}/tickets/${tkId}/comments`)
+              .then(r => r.ok ? r.json() : [])
+              .then(data => {
+                  const newComments = Array.isArray(data) ? data : [];
+                  setComments(prev => prev.length !== newComments.length ? newComments : prev);
+              })
+              .catch(() => {});
+          
+          fetch(`${API_URL}/assignee/history/${tkId}`)
+              .then(r => r.ok ? r.json() : [])
+              .then(data => {
+                  const newHistory = Array.isArray(data) ? data : [];
+                  setHistory(prev => prev.length !== newHistory.length ? newHistory : prev);
+              })
+              .catch(() => {});
+      }, 3000);
+
+      return () => clearInterval(interval);
+  }, [fullTicket?.id, fullTicket?.ticket_id, ticket?.official_ticket_id]);
 
   const handlePostComment = async () => {
     if (!newComment.trim() || posting) return;
@@ -331,6 +369,20 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
               </div>
             </div>
           )}
+
+          {/* 🟢 เพิ่มกล่องแสดง Resolution ของ Assignee ตรงนี้ */}
+          {(t.official_status === 'Solved' || t.official_status === 'Failed') && t.resolution_comment && (
+            <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden' }}>
+              <div style={{ padding: '11px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6, background: t.official_status === 'Solved' ? 'linear-gradient(135deg,#F0FDF4,#ECFDF5)' : 'linear-gradient(135deg,#FEF2F2,#FEF2F2)' }}>
+                <span>{t.official_status === 'Solved' ? '✅' : '❌'}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: t.official_status === 'Solved' ? '#059669' : '#DC2626' }}>Assignee Resolution</span>
+              </div>
+              <div style={{ padding: '14px 16px' }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{t.resolution_comment}</p>
+              </div>
+            </div>
+          )}
+          
         </div>
         {/* Right: Timeline */}
         <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden', position: 'sticky', top: 0 }}>

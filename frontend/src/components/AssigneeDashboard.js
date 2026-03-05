@@ -28,6 +28,32 @@ function AssigneeDashboard({ userId, API_URL }) {
             .catch(err => console.error("Dropdown fetch error:", err));
     }, [userId, API_URL]);
 
+    // 🟢 ระบบ Auto-Refresh ดึงแชทและประวัติแบบ Real-time (ทุกๆ 3 วินาที)
+    useEffect(() => {
+        if (!selectedTicket) return;
+
+        const interval = setInterval(() => {
+            // แอบดึงคอมเมนต์ใหม่
+            fetch(`${API_URL}/assignee/comments/${selectedTicket.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    setComments(prev => prev.length !== data.length ? data : prev);
+                })
+                .catch(err => console.error(err));
+            
+            // แอบดึงประวัติใหม่
+            fetch(`${API_URL}/assignee/history/${selectedTicket.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    setHistory(prev => prev.length !== data.length ? data : prev);
+                })
+                .catch(err => console.error(err));
+        }, 3000); // 3 วินาที
+
+        // ล้างการทำงานเมื่อปิดหน้าต่าง
+        return () => clearInterval(interval);
+    }, [selectedTicket, API_URL]);
+
     const totalWorkload = tasks.filter(t => ['new', 'assigned', 'solving'].includes(t.status.toLowerCase())).length;
 
 const getNameFromId = (id) => {
