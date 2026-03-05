@@ -18,7 +18,6 @@ export default function Login({ onLogin, goToSignUp }) {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
       <div style={{
         position: "fixed", top: 0, left: 0,
         width: "100vw", height: "100vh",
@@ -111,7 +110,6 @@ export default function Login({ onLogin, goToSignUp }) {
           </div>
         </div>
       </div>
-    </GoogleOAuthProvider>
   );
 }
 

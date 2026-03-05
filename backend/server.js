@@ -972,12 +972,36 @@ app.get('/api/admin/pending-approvals', (req, res) => {
         res.json(results);
     });
 });
-
 app.put('/api/admin/approve-user/:id', (req, res) => {
     const { id } = req.params;
     const sql = "UPDATE users SET is_approved = 1 WHERE id = ?";
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).send(err);
+
+        db.query("SELECT full_name, email FROM users WHERE id = ?", [id], (fetchErr, rows) => {
+            if (!fetchErr && rows.length > 0) {
+                const userEmail = rows[0].email;
+                const fullName = rows[0].full_name;
+
+                if (userEmail) {
+                    const approvedHtml = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 24px;">Account Approved</h2>
+                        </div>
+                        <div style="padding: 30px; background-color: #ffffff;">
+                            <p style="font-size: 16px; color: #333;">Hello <strong>${fullName}</strong>,</p>
+                            <p style="font-size: 16px; color: #333;">Great news! Your Assignee 👩🏻‍💻 account has been approved by the Administrator.</p>
+                            <p style="font-size: 16px; color: #333;">You can now log in to the CEiVoice system and start managing support tickets.</p>
+                            <p style="font-size: 15px; color: #666; margin-top: 30px;">Welcome to the team,<br/><strong style="color: #198754;">The CEiVoice Team</strong></p>
+                        </div>
+                    </div>`;
+                    
+                    sendNotificationEmail(userEmail, "CEiVoice: Account Approved", approvedHtml);
+                }
+            }
+        });
+
         res.json({ message: "User approved successfully" });
     });
 });
