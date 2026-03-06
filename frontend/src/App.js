@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import TodoList from './components/TodoList';
 import CreateTeam from './components/CreateTeam';
-import CreateNewAdmin from './components/CreateNewAdmin';
+import CreateNewAdmin from './components/CreateNewAdminNew';
 import './App.css';
 
 function App() {
@@ -53,49 +53,43 @@ function App() {
         setPage('login');
     };
 
+    // ── Not logged in ─────────────────────────────────────────────────────────
+    if (!currentUser) {
+        return <Login onLogin={handleLogin} />;
+    }
+
+    // ── Create Team (full-screen, no card wrapper) ────────────────────────────
+    if (page === 'createTeam') {
+        return (
+            <CreateTeam
+                username={currentUser}
+                onBack={() => setPage('todoList')}
+            />
+        );
+    }
+
+    // ── Create New Admin (full-screen, no card wrapper) ───────────────────────
+    if (page === 'createNewAdmin') {
+        return (
+            <CreateNewAdmin
+                onSuccess={() => setPage('todoList')}
+                onBack={() => setPage('todoList')}
+            />
+        );
+    }
+
+    // ── Main app ──────────────────────────────────────────────────────────────
     return (
-        <>
-            {currentUser ? (
-                <div className="min-vh-100 d-flex align-items-center justify-content-center py-4 px-3">
-                    <div
-                        className="col-12 col-lg-11 col-xl-11"
-                        style={{ maxWidth: '1400px', transition: 'all 0.3s ease' }}
-                    >
-                        <div className="card shadow-sm border-0 rounded-4">
-                            <div className="card-body p-4 p-sm-5">
-                                <main>
-                                    {page === 'createTeam' ? (
-                                        <CreateTeam
-                                            username={currentUser}
-                                            onBack={() => setPage('todoList')}
-                                        />
-                                    ) : page === 'createNewAdmin' ? (
-                                        <CreateNewAdmin
-                                            onSuccess={() => setPage('todoList')}
-                                            onBack={() => setPage('todoList')}
-                                        />
-                                    ) : (
-                                        <TodoList
-                                            username={currentUser}
-                                            userId={currentUserId}
-                                            onLogout={handleLogout}
-                                            userEmail={userEmail}
-                                            profileImage={profileImage}
-                                            createTeam={() => setPage('createTeam')}
-                                            createNewAdmin={() => setPage('createNewAdmin')}
-                                            role={userRole}
-                                        />
-                                    )}
-                                </main>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                /* Login handles both Login + Sign Up internally via the slider UI */
-                <Login onLogin={handleLogin} />
-            )}
-        </>
+        <TodoList
+            username={currentUser}
+            userId={currentUserId}
+            onLogout={handleLogout}
+            userEmail={userEmail}
+            profileImage={profileImage}
+            createTeam={() => setPage('createTeam')}
+            createNewAdmin={() => setPage('createNewAdmin')}
+            role={userRole}
+        />
     );
 }
 

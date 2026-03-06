@@ -34,8 +34,8 @@ export default function Login({ onLogin, goToSignUp }) {
           background: "rgba(0,0,0,0.3)", backdropFilter: "blur(10px)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}>
-            <img src="/cei_logo.png" alt="Logo" style={{ width: "45px", height: "39.85px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))", objectFit: "contain" }} />
-            <span style={{ fontFamily: "'Hammersmith One', sans-serif", fontSize: "24px", color: "#fff", fontWeight: "400", whiteSpace: "nowrap", lineHeight: "1", paddingBottom: "2px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))" }}>CEI Todo</span>
+            <img src="/Ceiwhitelogo.png" alt="Logo" style={{ width: "45px", height: "39.85px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))", objectFit: "contain" }} />
+            <span style={{ fontFamily: "'Hammersmith One', sans-serif", fontSize: "24px", color: "#fff", fontWeight: "400", whiteSpace: "nowrap", lineHeight: "1", paddingBottom: "2px", filter: "drop-shadow(0px 4px 4px rgba(0,0,0,0.25))" }}>Voice System</span>
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: "2rem" }}>
@@ -193,8 +193,8 @@ function LoginForm({ onLogin, goToSignUp }) {
 
   return (
     <div style={{ width: "90%", maxWidth: "420px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)", margin: "100px 0 20px 0" }}>
-      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, fontWeight: "800" }}>WELCOME BACK</h2>
-      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Sign in to your CEI Todo account to continue.</p>
+      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, }}>USER LOGIN</h2>
+      <p style={{ color: "#DADADA", fontSize: "1rem", marginBottom: "2rem" }}>Welcome back to CeiVoice</p>
 
       {error && <p style={errorStyle}>{error}</p>}
 
@@ -235,7 +235,7 @@ function LoginForm({ onLogin, goToSignUp }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
         <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.2)" }} />
-        <span style={{ color: "#DADADA", fontSize: "0.8rem" }}>or</span>
+        <div style={{ textAlign: "center", margin: "1rem", color: "#fff", opacity: 0.8 }}>OR</div>
         <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.2)" }} />
       </div>
 
@@ -250,7 +250,7 @@ function LoginForm({ onLogin, goToSignUp }) {
 
       <p style={{ color: "#fff", textAlign: "center", marginTop: "1.5rem", fontSize: "0.85rem" }}>
         Don't have an account?{" "}
-        <span onClick={goToSignUp} style={{ color: "#FFB000", cursor: "pointer", fontWeight: "bold" }}>Create one</span>
+        <span onClick={goToSignUp} style={{ color: "#FFB000", cursor: "pointer", fontWeight: "bold" }}>Register</span>
       </p>
     </div>
   );
@@ -360,9 +360,9 @@ function SignUpForm({ onSuccess, goToLogIn }) {
   };
 
   return (
-    <div style={{ width: "90%", maxWidth: "420px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)", margin: "80px 0 20px 0" }}>
-      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, fontWeight: "800" }}>CREATE ACCOUNT</h2>
-      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Join CEI Todo and manage your tasks efficiently.</p>
+    <div style={{ width: "90%", maxWidth: "450px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(25px)", borderRadius: "20px", padding: "2.5rem", border: "1px solid rgba(255,255,255,0.1)", margin: "100px 0 20px 0" }}>
+      <h2 style={{ color: "#fff", fontSize: "2rem", margin: 0, fontWeight: "800" }}>CREATE AN ACCOUNT</h2>
+      <p style={{ color: "#DADADA", fontSize: "0.9rem", marginBottom: "1.5rem" }}>Create your account and experience smarter, faster support with CEiVoice.</p>
 
       {error && <p style={errorStyle}>{error}</p>}
 
