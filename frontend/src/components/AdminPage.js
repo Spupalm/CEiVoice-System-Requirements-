@@ -43,45 +43,238 @@ const ApprovalsView = () => {
   );
 };
 
-// ─── Reports Sub-View ─────────────────────────────────────────────────────────
+// ─── Period Selector ──────────────────────────────────────────────────────────
+const PERIOD_OPTIONS = [
+  { label: 'Last 7 days',  value: 7  },
+  { label: 'Last 30 days', value: 30 },
+  { label: 'Last 90 days', value: 90 },
+  { label: 'All time',     value: 0  },
+];
+
 const ReportsView = () => {
   const [s, setS] = useState({ total: 0, avgTime: 0, byStatus: [], byCategory: [] });
-  useEffect(() => {
-    fetch(`${API_URL}/admin/reports`).then(r => r.json()).then(d =>
-      setS({ total: d.total || 0, avgTime: d.avgTime || 0, byStatus: d.byStatus || [], byCategory: d.byCategory || [] })
-    ).catch(() => {});
-  }, []);
-  const backlog = s.byStatus.filter(x => ['New', 'Assigned', 'Solving'].includes(x.status)).reduce((a, x) => a + Number(x.count), 0);
+  const [period, setPeriod] = useState(30);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]     = useState('');
+  const [useCustom, setUseCustom]   = useState(false);
+  const [loading, setLoading]       = useState(false);
+
+  const getRange = () => {
+    if (useCustom && customFrom && customTo) return { from: customFrom, to: customTo };
+    if (period === 0) return {};
+    const to   = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - period);
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  };
+
+  const load = () => {
+    setLoading(true);
+    const range = getRange();
+    const params = new URLSearchParams();
+    if (range.from) params.set('from', range.from);
+    if (range.to)   params.set('to',   range.to);
+    const url = `${API_URL}/admin/reports${params.toString() ? '?' + params.toString() : ''}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => setS({ total: d.total || 0, avgTime: d.avgTime || 0, byStatus: d.byStatus || [], byCategory: d.byCategory || [] }))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [period, useCustom, customFrom, customTo]);
+
+  const backlog     = s.byStatus.filter(x => ['New', 'Assigned', 'Solving'].includes(x.status)).reduce((a, x) => a + Number(x.count), 0);
+  const resolved    = s.byStatus.filter(x => x.status === 'Solved').reduce((a, x) => a + Number(x.count), 0);
+  const resolveRate = s.total > 0 ? ((resolved / s.total) * 100).toFixed(0) : 0;
+
+  const periodLabel = useCustom && customFrom && customTo
+    ? `${customFrom} → ${customTo}`
+    : PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Last 30 days';
+
+  const range   = getRange();
+  const daySpan = range.from && range.to ? Math.ceil((new Date(range.to) - new Date(range.from)) / 86400000) : period;
+  const showDaily = period !== 0 && daySpan <= 90;
+
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
-        <StatCard label="Total Tickets" value={s.total} accent='#F97316' />
-        <StatCard label="Avg. Resolution" value={`${parseFloat(s.avgTime || 0).toFixed(1)}h`} accent='#10B981' />
-        <StatCard label="Current Backlog" value={backlog} accent='#F59E0B' />
+      {/* Period selector bar */}
+      <div style={{ background: 'white', borderRadius: 12, border: '1px solid #F3F4F6', padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>📅 Period</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {PERIOD_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => { setPeriod(opt.value); setUseCustom(false); }}
+              style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid',
+                borderColor: !useCustom && period === opt.value ? '#F97316' : '#E5E7EB',
+                background: !useCustom && period === opt.value ? '#FFF7ED' : 'white',
+                color: !useCustom && period === opt.value ? '#EA580C' : '#6B7280',
+                fontWeight: !useCustom && period === opt.value ? 700 : 400,
+                fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ width: 1, height: 24, background: '#E5E7EB', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF' }}>Custom</span>
+          <input type="date" value={customFrom} onChange={e => { setCustomFrom(e.target.value); setUseCustom(true); }}
+            style={{ padding: '5px 8px', border: `1.5px solid ${useCustom ? '#F97316' : '#E5E7EB'}`, borderRadius: 7, fontSize: 12, outline: 'none', color: '#374151', background: useCustom ? '#FFF7ED' : 'white', cursor: 'pointer' }} />
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>→</span>
+          <input type="date" value={customTo} onChange={e => { setCustomTo(e.target.value); setUseCustom(true); }}
+            style={{ padding: '5px 8px', border: `1.5px solid ${useCustom ? '#F97316' : '#E5E7EB'}`, borderRadius: 7, fontSize: 12, outline: 'none', color: '#374151', background: useCustom ? '#FFF7ED' : 'white', cursor: 'pointer' }} />
+          {useCustom && (
+            <button onClick={() => { setUseCustom(false); setCustomFrom(''); setCustomTo(''); setPeriod(30); }}
+              style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          )}
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {loading && <span style={{ fontSize: 11, color: '#F97316' }}>⏳ Loading…</span>}
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', background: '#FFF7ED', border: '1px solid #FED7AA', padding: '4px 10px', borderRadius: 20 }}>{periodLabel}</span>
+        </div>
       </div>
+
+      {/* Stat cards — 4 columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+        <StatCard label="Total Tickets"   value={loading ? '…' : s.total}                                  accent='#F97316' sub={periodLabel} />
+        <StatCard label="Avg. Resolution" value={loading ? '…' : `${parseFloat(s.avgTime || 0).toFixed(1)}h`} accent='#10B981' sub="avg per ticket" />
+        <StatCard label="Current Backlog" value={loading ? '…' : backlog}                                  accent='#F59E0B' sub="open tickets" />
+        <StatCard label="Resolution Rate" value={loading ? '…' : `${resolveRate}%`}                        accent='#3B82F6' sub={`${resolved} solved`} />
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card>
-          <CardHead title="By Status" />
+          <CardHead title="By Status" right={<Pill bg='#FFF7ED' color='#F97316'>{periodLabel}</Pill>} />
           <div style={{ padding: '16px 20px' }}>
-            {s.byStatus.map(x => (
-              <div key={x.status} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span style={{ fontWeight: 600 }}>{x.status}</span><span style={{ color: '#6B7280' }}>{x.count}</span></div>
-                <div style={{ height: 6, background: '#F3F4F6', borderRadius: 3 }}><div style={{ height: '100%', background: '#F97316', borderRadius: 3, width: `${s.total > 0 ? (x.count / s.total) * 100 : 0}%`, transition: 'width .5s' }} /></div>
-              </div>
-            ))}
+            {loading
+              ? <div style={{ textAlign: 'center', padding: 32, color: '#9CA3AF', fontSize: 13 }}>⏳ Loading…</div>
+              : s.byStatus.length === 0
+                ? <div style={{ textAlign: 'center', padding: 32, color: '#9CA3AF', fontSize: 13 }}>No data for this period</div>
+                : s.byStatus.map(x => (
+                    <div key={x.status} style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600 }}>{x.status}</span><span style={{ color: '#6B7280' }}>{x.count}</span>
+                      </div>
+                      <div style={{ height: 6, background: '#F3F4F6', borderRadius: 3 }}>
+                        <div style={{ height: '100%', background: '#F97316', borderRadius: 3, width: `${s.total > 0 ? (x.count / s.total) * 100 : 0}%`, transition: 'width .5s' }} />
+                      </div>
+                    </div>
+                  ))}
           </div>
         </Card>
         <Card>
-          <CardHead title="By Category" />
+          <CardHead title="By Category" right={<Pill bg='#FFF7ED' color='#F97316'>{periodLabel}</Pill>} />
           <div style={{ padding: '0 20px 8px' }}>
-            {s.byCategory.map(x => (
-              <div key={x.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #F9FAFB' }}>
-                <span style={{ fontSize: 13, color: '#6B7280' }}>{x.name}</span>
-                <Pill bg='#F97316' color='white'>{x.count}</Pill>
-              </div>
-            ))}
+            {loading
+              ? <div style={{ textAlign: 'center', padding: 32, color: '#9CA3AF', fontSize: 13 }}>⏳ Loading…</div>
+              : s.byCategory.length === 0
+                ? <div style={{ textAlign: 'center', padding: 32, color: '#9CA3AF', fontSize: 13 }}>No data for this period</div>
+                : s.byCategory.map(x => (
+                    <div key={x.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #F9FAFB' }}>
+                      <span style={{ fontSize: 13, color: '#6B7280' }}>{x.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 60, height: 4, background: '#F3F4F6', borderRadius: 2 }}>
+                          <div style={{ height: '100%', background: '#F97316', borderRadius: 2, width: `${s.total > 0 ? Math.min((x.count / s.total) * 300, 100) : 0}%`, transition: 'width .5s' }} />
+                        </div>
+                        <Pill bg='#F97316' color='white'>{x.count}</Pill>
+                      </div>
+                    </div>
+                  ))}
           </div>
         </Card>
+      </div>
+
+      {showDaily && <DailyBreakdown from={range.from} to={range.to} />}
+    </div>
+  );
+};
+
+// ─── Daily Breakdown Chart ────────────────────────────────────────────────────
+const DailyBreakdown = ({ from, to }) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!from || !to) return;
+    setLoading(true);
+
+    // Build a day-by-day map for the range
+    const buildDailyFromTickets = (tickets) => {
+      const map = {};
+      const start = new Date(from + 'T00:00:00');
+      const end   = new Date(to   + 'T23:59:59');
+      // Seed every day in range with 0
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        map[d.toISOString().slice(0, 10)] = 0;
+      }
+      tickets.forEach(t => {
+        const day = (t.created_at || '').slice(0, 10);
+        if (map[day] !== undefined) map[day]++;
+      });
+      return Object.entries(map)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count }));
+    };
+
+    // Fetch all official tickets and draft tickets to count by created_at
+    Promise.all([
+      fetch(`${API_URL}/admin/official-tickets`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API_URL}/admin/draft-tickets`).then(r => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([official, drafts]) => {
+      const all = [...(Array.isArray(official) ? official : []), ...(Array.isArray(drafts) ? drafts : [])];
+      setData(buildDailyFromTickets(all));
+    }).catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, [from, to]);
+
+  if (loading) return (
+    <div style={{ marginTop: 16, background: 'white', borderRadius: 12, border: '1px solid #F3F4F6', padding: 28, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>⏳ Loading daily breakdown…</div>
+  );
+  if (data.length === 0) return (
+    <div style={{ marginTop: 16, background: 'white', borderRadius: 12, border: '1px solid #F3F4F6', padding: 28, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>No daily data available</div>
+  );
+
+  const maxVal = Math.max(...data.map(d => Number(d.count || 0)), 1);
+  const total  = data.reduce((a, d) => a + Number(d.count || 0), 0);
+  const peak   = data.find(d => Number(d.count) === maxVal);
+
+  return (
+    <div style={{ marginTop: 16, background: 'white', borderRadius: 12, border: '1px solid #F3F4F6', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ padding: '13px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13 }}>📊</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>Daily Ticket Volume</span>
+        <Pill bg='#FFF7ED' color='#F97316'>{from} → {to}</Pill>
+      </div>
+      <div style={{ padding: '20px 20px 16px', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: data.length * 22, height: 90 }}>
+          {data.map((d, i) => {
+            const count  = Number(d.count || 0);
+            const barH   = maxVal > 0 ? Math.max((count / maxVal) * 72, count > 0 ? 4 : 0) : 0;
+            const isPeak = count === maxVal && count > 0;
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 18, height: '100%', justifyContent: 'flex-end', gap: 2 }}>
+                {count > 0 && <span style={{ fontSize: 8, color: isPeak ? '#EA580C' : '#9CA3AF', fontWeight: isPeak ? 700 : 400, lineHeight: 1 }}>{count}</span>}
+                <div title={`${d.date}: ${count} ticket${count !== 1 ? 's' : ''}`}
+                  style={{ width: '80%', borderRadius: '3px 3px 0 0', height: barH,
+                    background: isPeak ? 'linear-gradient(180deg,#FB923C,#EA580C)' : count > 0 ? 'linear-gradient(180deg,#FDBA74,#F97316)' : '#F3F4F6',
+                    transition: 'height 0.4s ease', cursor: 'default',
+                    boxShadow: isPeak ? '0 2px 6px rgba(249,115,22,0.35)' : 'none' }} />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 3, minWidth: data.length * 22, marginTop: 4 }}>
+          {data.map((d, i) => {
+            const every = data.length > 20 ? Math.ceil(data.length / 15) : 1;
+            if (i % every !== 0) return <div key={i} style={{ flex: 1, minWidth: 18 }} />;
+            const dt = new Date(d.date + 'T00:00:00');
+            return <div key={i} style={{ flex: 1, minWidth: 18, fontSize: 8, color: '#9CA3AF', textAlign: 'center', whiteSpace: 'nowrap' }}>{dt.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</div>;
+          })}
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9CA3AF', borderTop: '1px solid #F3F4F6', paddingTop: 10 }}>
+          <span>Total: <strong style={{ color: '#1A1A2E' }}>{total}</strong> tickets in period</span>
+          <span>Daily avg: <strong style={{ color: '#1A1A2E' }}>{(total / data.length).toFixed(1)}</strong></span>
+          {peak && <span>Peak: <strong style={{ color: '#F97316' }}>{maxVal}</strong> on {peak.date}</span>}
+        </div>
       </div>
     </div>
   );
