@@ -10,7 +10,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 export default function Login({ onLogin, goToSignUp }) {
   const [isRegister, setIsRegister] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
+    
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
@@ -18,7 +18,7 @@ export default function Login({ onLogin, goToSignUp }) {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+
       <div style={{
         position: "fixed", top: 0, left: 0,
         width: "100vw", height: "100vh",
@@ -111,7 +111,7 @@ export default function Login({ onLogin, goToSignUp }) {
           </div>
         </div>
       </div>
-    </GoogleOAuthProvider>
+
   );
 }
 
@@ -324,6 +324,7 @@ function SignUpForm({ onSuccess, goToLogIn }) {
     formData.append('role', role);
     formData.append('skills', role === 'assignee' ? JSON.stringify(selectedSkills) : '[]');
     formData.append('captchaToken', captchaToken);
+    console.log("Selected skills for registration:", formData);
     if (profileImage) formData.append('profileImage', profileImage);
 
     try {

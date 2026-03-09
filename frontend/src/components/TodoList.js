@@ -175,7 +175,7 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
           if (tkId) {
             setLoadingComments(true);
             fetch(`${API_URL}/tickets/${tkId}/comments`).then(r => r.ok ? r.json() : []).then(d => { setComments(Array.isArray(d) ? d : []); setLoadingComments(false); }).catch(() => setLoadingComments(false));
-            fetch(`${API_URL}/ticket-history?ticketId=${tkId}`).then(r => r.ok ? r.json() : []).then(d => setHistory(Array.isArray(d) ? d : [])).catch(() => {});
+            fetch(`${API_URL}/ticket-history?ticketId=${tkId}`).then(r => r.ok ? r.json() : []).then(d => setHistory(Array.isArray(d) ? d : [])).catch(() => { });
           }
         } else { setLoadingComments(false); }
       }).catch(() => setLoadingComments(false));
@@ -184,7 +184,7 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
       fetch(`${API_URL}/admin/draft-tickets`).then(r => r.ok ? r.json() : []).then(list => {
         const found = Array.isArray(list) ? list.find(d => d.linked_requests?.some(r => String(r.id) === String(requestId))) : null;
         if (found) setFullTicket(found);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [ticket?.request_id, ticket?.id, ticket?.request_status, ticket?.status]);
 
@@ -360,7 +360,7 @@ const TicketDetailView = ({ ticket, userId, username, userEmail, profileImage, o
 const ApprovalsView = () => {
   const [pending, setPending] = useState([]);
   const [search, setSearch] = useState('');
-  const load = () => fetch(`${API_URL}/admin/pending-approvals`).then(r => r.json()).then(d => setPending(Array.isArray(d) ? d : [])).catch(() => {});
+  const load = () => fetch(`${API_URL}/admin/pending-approvals`).then(r => r.json()).then(d => setPending(Array.isArray(d) ? d : [])).catch(() => { });
   useEffect(() => { load(); }, []);
   const approve = (id) => {
     if (!window.confirm('Approve this user?')) return;
@@ -374,24 +374,24 @@ const ApprovalsView = () => {
       {rows.length === 0
         ? <div style={{ padding: 48, textAlign: 'center', color: '#9CA3AF' }}>✅ No pending approvals</div>
         : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><TH>Name</TH><TH>Username</TH><TH>Email</TH><TH>Role</TH><TH>Action</TH></tr></thead>
-            <tbody>{rows.map(u => (
-              <tr key={u.id} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'} style={{ background: 'white' }}>
-                <TD s={{ fontWeight: 600 }}>{u.full_name}</TD>
-                <TD s={{ color: '#6B7280' }}>{u.username}</TD>
-                <TD s={{ color: '#6B7280' }}>{u.email || '—'}</TD>
-                <TD><Pill bg='#E3F2FD' color='#1565C0'>{u.role}</Pill></TD>
-                <TD><Btn variant='green' onClick={() => approve(u.id)}>✓ Approve</Btn></TD>
-              </tr>
-            ))}</tbody>
-          </table>}
+          <thead><tr><TH>Name</TH><TH>Username</TH><TH>Email</TH><TH>Role</TH><TH>Action</TH></tr></thead>
+          <tbody>{rows.map(u => (
+            <tr key={u.id} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'} style={{ background: 'white' }}>
+              <TD s={{ fontWeight: 600 }}>{u.full_name}</TD>
+              <TD s={{ color: '#6B7280' }}>{u.username}</TD>
+              <TD s={{ color: '#6B7280' }}>{u.email || '—'}</TD>
+              <TD><Pill bg='#E3F2FD' color='#1565C0'>{u.role}</Pill></TD>
+              <TD><Btn variant='green' onClick={() => approve(u.id)}>✓ Approve</Btn></TD>
+            </tr>
+          ))}</tbody>
+        </table>}
     </Card>
   );
 };
 
 const ReportsView = () => {
   const [s, setS] = useState({ total: 0, avgTime: 0, byStatus: [], byCategory: [] });
-  useEffect(() => { fetch(`${API_URL}/admin/reports`).then(r => r.json()).then(d => setS({ total: d.total || 0, avgTime: d.avgTime || 0, byStatus: d.byStatus || [], byCategory: d.byCategory || [] })).catch(() => {}); }, []);
+  useEffect(() => { fetch(`${API_URL}/admin/reports`).then(r => r.json()).then(d => setS({ total: d.total || 0, avgTime: d.avgTime || 0, byStatus: d.byStatus || [], byCategory: d.byCategory || [] })).catch(() => { }); }, []);
   const backlog = s.byStatus.filter(x => ['New', 'Assigned', 'Solving'].includes(x.status)).reduce((a, x) => a + Number(x.count), 0);
   return (
     <div>
@@ -481,11 +481,12 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
       setUsers(toArr(d4)); setCategories(toArr(d5));
     } catch (e) { console.error(e); }
   };
+  console.log("Admin Data:", { requests, drafts, tickets, users, categories });
   const loadAssignees = async () => {
-    try { const r = await fetch(`${API_URL}/users/assignees`); if (!r.ok) return; setAssignees(toArr(await r.json().catch(() => []))); } catch {}
+    try { const r = await fetch(`${API_URL}/users/assignees`); if (!r.ok) return; setAssignees(toArr(await r.json().catch(() => []))); } catch { }
   };
   const loadHistory = async () => {
-    try { const r = await fetch(`${API_URL}/ticket-history?userId=${userId}&role=${role}`); if (!r.ok) return; setHistory(toArr(await r.json().catch(() => []))); } catch {}
+    try { const r = await fetch(`${API_URL}/ticket-history?userId=${userId}&role=${role}`); if (!r.ok) return; setHistory(toArr(await r.json().catch(() => []))); } catch { }
   };
 
   const navigate = (v) => { setView(v); setSelectedTask(null); };
@@ -545,86 +546,114 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
   const getAssigneeName = id => assignees.find(a => String(a.id) === String(id))?.username;
 
   // ── Admin render functions ──
-  const renderDraftEdit = () => (
-    <Card>
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <button onClick={() => setSelectedTask(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E' }}>Ticket #{selectedTask.id}</span>
-            <StatusPill s={selectedTask.status} />
+  const renderDraftEdit = () => console.log("Rendering Draft Edit View for:", selectedTask) ||
+    (
+      <Card>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button onClick={() => setSelectedTask(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E' }}>Ticket #{selectedTask.id}</span>
+              <StatusPill s={selectedTask.status} />
+            </div>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Created {fmtDate(selectedTask.created_at)}</div>
           </div>
-          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Created {fmtDate(selectedTask.created_at)}</div>
+          <Btn variant='outline' onClick={() => saveDraft(selectedTask.id, selectedTask)} disabled={loading}>💾 Save Draft</Btn>
+          <Btn variant='primary' onClick={() => approveToOfficial(selectedTask)} disabled={loading}>✓ Approve & Submit</Btn>
         </div>
-        <Btn variant='outline' onClick={() => saveDraft(selectedTask.id, selectedTask)} disabled={loading}>💾 Save Draft</Btn>
-        <Btn variant='primary' onClick={() => approveToOfficial(selectedTask)} disabled={loading}>✓ Approve & Submit</Btn>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr' }}>
-        <div style={{ padding: 24, borderRight: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Ticket Details</div>
-          {[{ label: 'Title', field: 'title' }, { label: 'Category', field: 'category' }].map(({ label, field }) => (
-            <div key={field}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>{label}</label>
-              <input value={selectedTask[field] || ''} onChange={e => setSelectedTask({ ...selectedTask, [field]: e.target.value })}
+        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr' }}>
+          <div style={{ padding: 24, borderRight: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Ticket Details</div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
+                Title
+              </label>
+              <input
+                value={selectedTask.title || ''}
+                onChange={e => setSelectedTask({ ...selectedTask, title: e.target.value })}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            {/* ส่วนของ Category */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
+                Category
+              </label>
+              <select
+                
+                value={selectedTask.category || selectedTask.ai_category_name || ''}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', outline: 'none', cursor: 'pointer' }}
+                onChange={e => setSelectedTask({ ...selectedTask, category: e.target.value })}
+              >
+                <option value="">— Select Category —</option>
+                {/* ใช้ข้อมูลหมวดหมู่จาก Admin Data ที่คุณส่งมา */}
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Assignee</label>
+              <select value={selectedTask.assigned_to || ''} onChange={e => setSelectedTask({ ...selectedTask, assigned_to: e.target.value })}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', outline: 'none', cursor: 'pointer' }}>
+                <option value="">— Select Assignee —</option>
+                {assignees.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.username} {a.id == selectedTask.suggested_assignee ? '(AI Suggested)' : ''}
+                  </option>
+                ))}
+
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Due Date</label>
+              <input type="datetime-local" value={selectedTask.deadline ? selectedTask.deadline.substring(0, 16) : ''}
+                onChange={e => setSelectedTask({ ...selectedTask, deadline: e.target.value })}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', boxSizing: 'border-box', outline: 'none' }} />
             </div>
-          ))}
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Assignee</label>
-            <select value={selectedTask.assigned_to || ''} onChange={e => setSelectedTask({ ...selectedTask, assigned_to: e.target.value })}
-              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', outline: 'none', cursor: 'pointer' }}>
-              <option value="">— Select Assignee —</option>
-              {assignees.map(a => <option key={a.id} value={a.id}>{a.username}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Due Date</label>
-            <input type="datetime-local" value={selectedTask.deadline ? selectedTask.deadline.substring(0, 16) : ''}
-              onChange={e => setSelectedTask({ ...selectedTask, deadline: e.target.value })}
-              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', boxSizing: 'border-box', outline: 'none' }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Original Messages</div>
-            {selectedTask.linked_requests?.length > 0
-              ? selectedTask.linked_requests.map((req, i) => (
-                <div key={i} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 3 }}>#{req.id} · {req.user_email}</div>
-                    <div style={{ fontSize: 12, color: '#1A1A2E', fontStyle: 'italic' }}>"{req.message}"</div>
-                  </div>
-                  {selectedTask.linked_requests.length > 1 && (
-                    <button onClick={() => unlinkRequest(req.id, selectedTask.id)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✂</button>
-                  )}
-                </div>
-              ))
-              : <p style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center' }}>No linked requests</p>}
-          </div>
-        </div>
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>✦ AI Summary</div>
-            <textarea rows={5} value={selectedTask.summary || ''} onChange={e => setSelectedTask({ ...selectedTask, summary: e.target.value })}
-              style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: 12, fontSize: 13, resize: 'vertical', outline: 'none', background: '#F9FAFB', boxSizing: 'border-box', lineHeight: 1.6 }} />
-          </div>
-          {selectedTask.resolution_path?.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Resolution Path</div>
-              {selectedTask.resolution_path.map((step, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                  <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: '#F97316', color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>{i + 1}</span>
-                  <textarea rows={2} value={step} onChange={e => { const p = [...selectedTask.resolution_path]; p[i] = e.target.value; setSelectedTask({ ...selectedTask, resolution_path: p }); }}
-                    style={{ flex: 1, border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px', fontSize: 12, resize: 'none', background: '#F9FAFB', outline: 'none', lineHeight: 1.5 }} />
-                </div>
-              ))}
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Original Messages</div>
+              {selectedTask.linked_requests?.length > 0
+                ? selectedTask.linked_requests.map((req, i) => (
+                  <div key={i} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 3 }}>#{req.id} · {req.user_email}</div>
+                      <div style={{ fontSize: 12, color: '#1A1A2E', fontStyle: 'italic' }}>"{req.message}"</div>
+                    </div>
+                    {selectedTask.linked_requests.length > 1 && (
+                      <button onClick={() => unlinkRequest(req.id, selectedTask.id)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✂</button>
+                    )}
+                  </div>
+                ))
+                : <p style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center' }}>No linked requests</p>}
             </div>
-          )}
+          </div>
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>✦ AI Summary</div>
+              <textarea rows={5} value={selectedTask.summary || ''} onChange={e => setSelectedTask({ ...selectedTask, summary: e.target.value })}
+                style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: 12, fontSize: 13, resize: 'vertical', outline: 'none', background: '#F9FAFB', boxSizing: 'border-box', lineHeight: 1.6 }} />
+            </div>
+            {selectedTask.resolution_path?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Resolution Path</div>
+                {selectedTask.resolution_path.map((step, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
+                    <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: '#F97316', color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>{i + 1}</span>
+                    <textarea rows={2} value={step} onChange={e => { const p = [...selectedTask.resolution_path]; p[i] = e.target.value; setSelectedTask({ ...selectedTask, resolution_path: p }); }}
+                      style={{ flex: 1, border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px', fontSize: 12, resize: 'none', background: '#F9FAFB', outline: 'none', lineHeight: 1.5 }} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
-        <Btn variant='ghost' onClick={() => selDrafts.length > 1 && mergeDrafts(selDrafts)}>⊕ Merge with Selected</Btn>
-      </div>
-    </Card>
-  );
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
+          <Btn variant='ghost' onClick={() => selDrafts.length > 1 && mergeDrafts(selDrafts)}>⊕ Merge with Selected</Btn>
+        </div>
+      </Card>
+    );
 
   const renderUserEdit = () => (
     <Card>
@@ -958,7 +987,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
   if (role === 'assignee') {
     return (
       <div style={{ display: 'flex', width: '100vw', height: '100vh', fontFamily: "'Segoe UI', sans-serif", background: '#F5F5F5', overflow: 'hidden', position: 'fixed', top: 0, left: 0 }}>
-        {renderSidebar([{ icon: '/ticket.png', label: 'My Tasks', view: 'tasks' }], 'tasks', () => {})}
+        {renderSidebar([{ icon: '/ticket.png', label: 'My Tasks', view: 'tasks' }], 'tasks', () => { })}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ background: 'white', height: 56, display: 'flex', alignItems: 'center', padding: '0 24px', borderBottom: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flexShrink: 0 }}>
             <span style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E' }}>My Assigned Tasks</span>

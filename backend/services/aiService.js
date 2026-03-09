@@ -19,6 +19,7 @@ export async function callAI(prompt) {
 }
 // Generate a draft support ticket based on user message
 export async function generateSupportTicket(userMessage, availableAssignees, existingDrafts) {
+  console.log(availableAssignees)
   const prompt = `
 You are an AI that creates draft support tickets.
 
@@ -44,7 +45,7 @@ Return JSON:
   "summary": "...",
   "suggestedSolution": [],
   "assignee_category_id": [],
-  "assigned_to_id": null,
+  "assigned_to_id": null or number,
   "match_draft_id": null or number,
 }
 `;

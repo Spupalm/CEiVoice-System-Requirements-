@@ -186,6 +186,17 @@ export default (db) => {
 
             // 🟢 เงื่อนไขที่ 2: แจ้งเตือนเมื่อสถานะเปลี่ยนเป็น Solved หรือ Failed
             if (status === 'Solved' || status === 'Failed') {
+                if (assignee_id) {
+                    const resetWorkStatusSql = `UPDATE users SET is_work = 0 WHERE id = ?`;
+                    db.query(resetWorkStatusSql, [assignee_id], (updErr) => {
+                        if (updErr) {
+                            console.error("❌ Failed to reset assignee is_work status:", updErr.message);
+                        } else {
+                            console.log(`✅ Assignee ID ${assignee_id} is now free (is_work = 0)`);
+                        }
+                    });
+                }
+                
                 const getEmailSql = `
                     SELECT DISTINCT
                         ur.user_email,

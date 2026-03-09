@@ -119,7 +119,8 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/google-login', async (req, res) => {
     const { token, profileImage } = req.body;
-
+    console.log("Received Google token:", token);
+    console.log("Received Google profile image:", profileImage);
     if (!token) {
         return res.status(400).json({ message: 'Token is required' });
     }
@@ -145,7 +146,7 @@ app.post('/api/google-login', async (req, res) => {
                     // --- [กรณีพบอีเมลตรงกัน] ---
                     // ระบบจะอนุญาตให้ Login ได้ทันที (ถือเป็นการเชื่อมบัญชีโดยอัตโนมัติ)
                     const user = results[0];
-                    
+
                     // อัปเดตรูปโปรไฟล์ให้เป็นรูปปัจจุบันจาก Google (Optional)
                     db.query(
                         'UPDATE users SET profile_image = ? WHERE id = ?',
@@ -395,13 +396,12 @@ app.post('/api/user-requests', (req, res) => {
                 SELECT 
                     u.id, 
                     u.full_name, 
-                    GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS expertise
+                GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS expertise
                 FROM users u
                 INNER JOIN user_skills us ON u.id = us.user_id
                 INNER JOIN categories c ON us.category_id = c.id
-                LEFT JOIN draft_tickets dt ON u.id = dt.assigned_to
                 WHERE u.role = 'assignee' 
-                AND dt.assigned_to IS NULL
+                AND u.is_work = 0
                 GROUP BY u.id
             `;
 
@@ -413,6 +413,7 @@ app.post('/api/user-requests', (req, res) => {
                     });
                 });
                 // 2. ส่ง message และ รายชื่อพนักงานไปให้ AI (อย่าลืมแก้ generateSupportTicket ให้รับ parameter เพิ่ม)
+                console.log("Available Assignees:", assigneesList);
                 const ticket = await generateSupportTicket(message, assigneesList, existingDrafts);
                 //console.log(assigneesList);
                 console.log("AI Suggested Ticket:", ticket);
@@ -432,7 +433,7 @@ app.post('/api/user-requests', (req, res) => {
                         INSERT INTO draft_tickets (user_email, title, category, summary,original_message, resolution_path, suggested_assignees,assigned_to, status, created_by_ai,ai_suggested_merge_id) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Draft', 1, ?)`;
                     console.log("Inserting Draft Ticket with:", [user_email, ticket.title, ticket.category, ticket.summary, message, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id]);
-                    db.query(sqlDraft, [user_email, ticket.title, ticket.category, ticket.summary,message,resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
+                    db.query(sqlDraft, [user_email, ticket.title, ticket.category, ticket.summary, message, resolutionPath, suggestedAssigneeId, ticket.assigned_to_id, ticket.match_draft_id], (draftErr, draftResult) => {
                         if (draftErr) {
                             console.error("Draft Insert Error:", draftErr);
                             return;
@@ -711,7 +712,7 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
         if (allRelatedRequests.length > 0) {
             // 🟢 บันทึกข้อมูลโดยเพิ่มค่า request_id (id จาก user_requests)
             const mappingData = allRelatedRequests.map(req => [newTicketId, req.user_id, req.id]);
-            
+
             await db.promise().query(
                 "INSERT INTO tickets_user_mapping (ticket_id, user_id, request_id) VALUES ?",
                 [mappingData]
@@ -724,8 +725,11 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
         // 4. อัปเดตสถานะ Draft และ User Request
         const updateDraft = db.promise().query("UPDATE draft_tickets SET status = 'Submitted' WHERE id = ?", [draft_id]);
         const updateRequest = db.promise().query("UPDATE user_requests SET status = 'ticket' WHERE draft_ticket_id = ?", [draft_id]);
-
-        await Promise.all([updateDraft, updateRequest]);
+        const updateAssigneeWorkStatus = db.promise().query(
+            "UPDATE users SET is_work = 1 WHERE id = ?",
+            [assignee_id]
+        );
+        await Promise.all([updateDraft, updateRequest, updateAssigneeWorkStatus]);
 
         // 🟢 5. ส่งอีเมลแจ้งเตือนเมื่อตั๋วถูกสร้างทางการ
         const approvedHtml = `
@@ -753,8 +757,8 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
             allRelatedUsers.forEach(user => {
                 if (user.user_email) {
                     sendNotificationEmail(
-                        user.user_email, 
-                        `CEiVoice: Ticket Created [${ticketNo}]`, 
+                        user.user_email,
+                        `CEiVoice: Ticket Created [${ticketNo}]`,
                         approvedHtml
                     );
                 }
@@ -978,6 +982,33 @@ app.put('/api/admin/approve-user/:id', (req, res) => {
     const sql = "UPDATE users SET is_approved = 1 WHERE id = ?";
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).send(err);
+
+        db.query("SELECT full_name, email FROM users WHERE id = ?", [id], (fetchErr, rows) => {
+            if (!fetchErr && rows.length > 0) {
+                const userEmail = rows[0].email;
+                const fullName = rows[0].full_name;
+
+                if (userEmail) {
+                    const approvedHtml =
+                        `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
+            <h2 style="margin: 0; font-size: 24px;">Account Approved</h2>
+        </div>
+        <div style="padding: 30px; background-color: #ffffff;">
+            <p style="font-size: 16px; color: #333;">Hello <strong>${fullName}</strong>,</p>
+            <p style="font-size: 16px; color: #333;">Great news! Your Assignee 👩🏻‍💻 account has been approved by the Administrator.</p>
+            <p style="font-size: 16px; color: #333;">You can now log in to the CEiVoice system and start managing support tickets.</p>
+            <p style="font-size: 15px; color: #666; margin-top: 30px;">Welcome to the team,<br /><strong style="color: #198754;">The CEiVoice Team</strong></p>
+        </div>
+    </div>
+`;
+
+                    sendNotificationEmail(userEmail, "CEiVoice: Account Approved", approvedHtml);
+                }
+            }
+        });
+
         res.json({ message: "User approved successfully" });
     });
 });
@@ -1029,7 +1060,7 @@ app.get('/api/admin/reports', (req, res) => {
 
 app.get('/api/ticket-history', (req, res) => {
     // ดึงค่าจาก req.query แทน เพราะเราส่งมากับ URL แบบ ?userId=...
-    const { userId, role } = req.query; 
+    const { userId, role } = req.query;
 
     // เช็ค Log ดูว่าค่ามาจริงไหม
     console.log("History Request Params:", { userId, role });
