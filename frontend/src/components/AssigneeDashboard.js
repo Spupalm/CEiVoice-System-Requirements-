@@ -101,8 +101,21 @@ function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
     const active = tasks.filter((ticket) => ['new', 'assigned', 'solving'].includes(String(ticket.status || '').toLowerCase())).length;
     const resolved = tasks.filter((ticket) => String(ticket.status || '').toLowerCase() === 'solved').length;
 
-    return { all, pending, active, resolved };
-  }, [tasks]);
+    const myAssignedTasks = tasks.filter((ticket) => Number(ticket.assignee_id) === Number(userId));
+    const currentlyAssigned = myAssignedTasks.filter(
+      (ticket) => !['solved', 'failed'].includes(String(ticket.status || '').toLowerCase())
+    ).length;
+
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const closedLast30Days = myAssignedTasks.filter((ticket) => {
+      const status = String(ticket.status || '').toLowerCase();
+      if (!['solved', 'failed'].includes(status)) return false;
+      const closeTime = new Date(ticket.updated_at || ticket.created_at || 0).getTime();
+      return !Number.isNaN(closeTime) && closeTime >= thirtyDaysAgo;
+    }).length;
+
+    return { all, pending, active, resolved, currentlyAssigned, closedLast30Days };
+  }, [tasks, userId]);
 
   const filteredTasks = useMemo(() => {
     const activeOnly = tasks.filter(
@@ -289,8 +302,8 @@ function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
 
       {view === 'dashboard' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
-        <StatCard label="Total Tasks" value={counters.all} sub={`${Math.max(counters.all - counters.resolved, 0)} pending`} accent="#F97316" />
-        <StatCard label="Pending Review" value={counters.pending} sub="new tickets" accent="#F59E0B" />
+        <StatCard label="Currently Assigned" value={counters.currentlyAssigned} sub="assigned to you now" accent="#F97316" />
+        <StatCard label="Solved/Failed (30d)" value={counters.closedLast30Days} sub="closed by status in 30 days" accent="#F59E0B" />
         <StatCard label="Active Tickets" value={counters.active} sub="in progress" accent="#3B82F6" />
         <StatCard label="Resolved" value={counters.resolved} sub="tickets solved" accent="#10B981" />
       </div>
