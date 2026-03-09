@@ -43,6 +43,136 @@ const ApprovalsView = () => {
   );
 };
 
+// ─── Merge Suggestion Banner ──────────────────────────────────────────────────
+// Fetches similar drafts from DB and suggests merging them.
+// Similarity: same category OR shared keywords in title (≥2 words overlap).
+const MergeSuggestions = ({ currentDraft, allDrafts, onMerge }) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [dismissed, setDismissed]     = useState(false);
+
+  useEffect(() => {
+    if (!currentDraft?.id) return;
+    setDismissed(false);
+    setLoading(true);
+
+    // Try backend endpoint first; fall back to client-side matching
+    fetch(`${API_URL}/admin/merge-suggestions/${currentDraft.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSuggestions(data);
+        } else {
+          // Client-side fallback: find similar drafts
+          setSuggestions(computeSimilar(currentDraft, allDrafts));
+        }
+      })
+      .catch(() => setSuggestions(computeSimilar(currentDraft, allDrafts)))
+      .finally(() => setLoading(false));
+  }, [currentDraft?.id]);
+
+  // Client-side similarity: same category OR ≥2 title keywords overlap
+  const computeSimilar = (cur, drafts) => {
+    if (!cur || !drafts) return [];
+    const stopWords = new Set(['the','a','an','is','in','on','at','to','for','of','and','or','with','that','this','my','i','it','not','but','are','was','be','have','has']);
+    const tokenize = str =>
+      (str || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+
+    const curCat    = (cur.category || cur.ai_category_name || '').toLowerCase().trim();
+    const curTokens = new Set(tokenize(cur.title));
+
+    return drafts
+      .filter(d => d.id !== cur.id && d.status !== 'Merged' && d.status !== 'Submitted')
+      .map(d => {
+        const dCat     = (d.category || d.ai_category_name || '').toLowerCase().trim();
+        const dTokens  = tokenize(d.title);
+        const overlap  = dTokens.filter(w => curTokens.has(w));
+        const sameCat  = curCat && dCat && curCat === dCat;
+        const score    = overlap.length + (sameCat ? 3 : 0);
+        return { ...d, _score: score, _overlap: overlap, _sameCat: sameCat };
+      })
+      .filter(d => d._score >= 2)
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 3);
+  };
+
+  if (loading || dismissed || suggestions.length === 0) return null;
+
+  return (
+    <div style={{
+      margin: '0 0 0 0',
+      background: 'linear-gradient(135deg,#F5F3FF,#EDE9FE)',
+      border: '1.5px solid #C4B5FD',
+      borderRadius: 12,
+      padding: '14px 18px',
+      animation: 'fdIn 0.25s ease',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 18 }}>✦</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#5B21B6' }}>
+              Merge Suggestions
+            </span>
+            <Pill bg='#DDD6FE' color='#5B21B6'>{suggestions.length} similar draft{suggestions.length !== 1 ? 's' : ''} found</Pill>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {suggestions.map(s => (
+              <div key={s.id} style={{
+                background: 'white',
+                borderRadius: 9,
+                border: '1px solid #DDD6FE',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>#{s.id}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {s._sameCat && (
+                      <Pill bg='#EDE9FE' color='#7C3AED'>Same category</Pill>
+                    )}
+                    {s._overlap?.length > 0 && (
+                      <Pill bg='#F3F4F6' color='#6B7280'>
+                        Keywords: {s._overlap.slice(0, 3).join(', ')}
+                      </Pill>
+                    )}
+                    <StatusPill s={s.status} />
+                    {s.summary && (
+                      <span style={{ fontSize: 10, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                        {s.summary}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onMerge([currentDraft.id, s.id])}
+                  style={{
+                    padding: '7px 14px', borderRadius: 8, border: 'none', flexShrink: 0,
+                    background: 'linear-gradient(135deg,#8B5CF6,#7C3AED)',
+                    color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                  ⊕ Merge
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+        <button onClick={() => setDismissed(true)} style={{
+          width: 24, height: 24, borderRadius: 6, border: '1px solid #C4B5FD',
+          background: 'white', color: '#8B5CF6', cursor: 'pointer', fontSize: 12,
+          flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>✕</button>
+      </div>
+    </div>
+  );
+};
+
 // ─── Period Selector ──────────────────────────────────────────────────────────
 const PERIOD_OPTIONS = [
   { label: 'Last 7 days',  value: 7  },
@@ -197,12 +327,10 @@ const DailyBreakdown = ({ from, to }) => {
     if (!from || !to) return;
     setLoading(true);
 
-    // Build a day-by-day map for the range
     const buildDailyFromTickets = (tickets) => {
       const map = {};
       const start = new Date(from + 'T00:00:00');
       const end   = new Date(to   + 'T23:59:59');
-      // Seed every day in range with 0
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         map[d.toISOString().slice(0, 10)] = 0;
       }
@@ -215,7 +343,6 @@ const DailyBreakdown = ({ from, to }) => {
         .map(([date, count]) => ({ date, count }));
     };
 
-    // Fetch all official tickets and draft tickets to count by created_at
     Promise.all([
       fetch(`${API_URL}/admin/official-tickets`).then(r => r.ok ? r.json() : []).catch(() => []),
       fetch(`${API_URL}/admin/draft-tickets`).then(r => r.ok ? r.json() : []).catch(() => []),
@@ -303,7 +430,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
     }).catch(() => setLoading(false));
   }, [t?.id]);
 
-  // Auto-refresh
   useEffect(() => {
     if (!t?.id) return;
     const interval = setInterval(() => {
@@ -367,8 +493,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
   return (
     <div style={{ animation: 'fdIn 0.2s ease' }}>
       <style>{`@keyframes fdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
-      {/* Header */}
       <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', marginBottom: 16, overflow: 'hidden' }}>
         <div style={{ height: 4, background: `linear-gradient(90deg, ${statusCfg.color}, ${statusCfg.color}88)` }} />
         <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -400,11 +524,7 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
           </div>
         </div>
       </div>
-
-      {/* Body: 3 columns */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px 200px', gap: 14, alignItems: 'start' }}>
-
-        {/* Left: Discussion */}
         <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
           <div style={{ padding: '13px 18px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 14 }}>💬</span>
@@ -448,8 +568,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
             </div>
           </div>
         </div>
-
-        {/* Middle: Summary + Resolution Path + Assignee Resolution */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {t.summary ? (
             <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden' }}>
@@ -461,7 +579,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
           ) : (
             <div style={{ background: '#FAFAFA', borderRadius: 14, border: '1px dashed #E5E7EB', padding: '24px 16px', textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>✦ No AI summary</div>
           )}
-
           {resolutionSteps.length > 0 && (
             <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden' }}>
               <div style={{ padding: '11px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#EFF6FF,#EEF2FF)' }}>
@@ -478,7 +595,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
               </div>
             </div>
           )}
-
           {(t.status === 'Solved' || t.status === 'Failed') && t.resolution_comment && (
             <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden' }}>
               <div style={{ padding: '11px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6, background: t.status === 'Solved' ? 'linear-gradient(135deg,#F0FDF4,#ECFDF5)' : 'linear-gradient(135deg,#FEF2F2,#FEF2F2)' }}>
@@ -491,8 +607,6 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
             </div>
           )}
         </div>
-
-        {/* Right: Timeline */}
         <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden', position: 'sticky', top: 0 }}>
           <div style={{ padding: '13px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12 }}>🕐</span><span style={{ fontSize: 12, fontWeight: 700, color: '#1A1A2E' }}>Timeline</span>
@@ -537,7 +651,7 @@ const PAGE_TITLES = {
 function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin, createTeam, userId }) {
   const [view, setView] = useState('dashboard');
   const [selectedTask, setSelectedTask] = useState(null);
-  const [selectedTicket, setSelectedTicket] = useState(null); // for active ticket detail
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [requests, setRequests] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -557,7 +671,6 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
   useEffect(() => { loadAll(); loadAssignees(); }, []);
   useEffect(() => { if (view === 'history') loadHistory(); }, [view]);
-  // Clear ticket detail when navigating away from official
   useEffect(() => { if (view !== 'official') setSelectedTicket(null); }, [view]);
 
   const loadAll = async () => {
@@ -624,12 +737,10 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
         setDSearch('');
         setView('drafts');
         setSelectedTask(null);
-        // Reload fresh drafts
         const fresh = await fetch(`${API_URL}/admin/draft-tickets`).then(res => res.ok ? res.json() : []).catch(() => []);
         const freshArr = Array.isArray(fresh) ? fresh : [];
         setDrafts(freshArr);
         loadAll();
-        // Find the merged result ticket (newest non-Merged draft, or by returned ID)
         const mergedId = d.mergedId || d.id || d.newDraftId;
         const validDrafts = freshArr.filter(dr => dr.status !== 'Merged');
         const merged = mergedId
@@ -667,6 +778,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
   // ── Render: Draft Edit ─────────────────────────────────────────────────────────
   const renderDraftEdit = () => (
     <Card>
+      <style>{`@keyframes fdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', display: 'flex', alignItems: 'center', gap: 14 }}>
         <button onClick={() => setSelectedTask(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
         <div style={{ flex: 1 }}>
@@ -679,38 +791,33 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
         <Btn variant='outline' onClick={() => saveDraft(selectedTask.id, selectedTask)} disabled={loading}>💾 Save Draft</Btn>
         <Btn variant='primary' onClick={() => approveToOfficial(selectedTask)} disabled={loading}>✓ Approve & Submit</Btn>
       </div>
+
+      {/* ── Merge Suggestion Banner (injected just below header) ── */}
+      <div style={{ padding: '14px 20px 0' }}>
+        <MergeSuggestions
+          currentDraft={selectedTask}
+          allDrafts={drafts}
+          onMerge={mergeDrafts}
+        />
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr' }}>
         <div style={{ padding: 24, borderRight: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Ticket Details</div>
           <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
-                Title
-              </label>
-              <input
-                value={selectedTask.title || ''}
-                onChange={e => setSelectedTask({ ...selectedTask, title: e.target.value })}
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', boxSizing: 'border-box', outline: 'none' }}
-              />
-            </div>
-
-            {/* ส่วนของ Category */}
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
-                Category
-              </label>
-              <select
-                
-                value={selectedTask.category || selectedTask.ai_category_name || ''}
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', outline: 'none', cursor: 'pointer' }}
-                onChange={e => setSelectedTask({ ...selectedTask, category: e.target.value })}
-              >
-                <option value="">— Select Category —</option>
-                {/* ใช้ข้อมูลหมวดหมู่จาก Admin Data ที่คุณส่งมา */}
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Title</label>
+            <input value={selectedTask.title || ''} onChange={e => setSelectedTask({ ...selectedTask, title: e.target.value })}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', boxSizing: 'border-box', outline: 'none' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Category</label>
+            <select value={selectedTask.category || selectedTask.ai_category_name || ''}
+              onChange={e => setSelectedTask({ ...selectedTask, category: e.target.value })}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: '#F9FAFB', outline: 'none', cursor: 'pointer' }}>
+              <option value="">— Select Category —</option>
+              {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+            </select>
+          </div>
           <div>
             <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Assignee</label>
             {(() => {
@@ -856,7 +963,6 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ── Action Required Banner ── */}
         {needsAction.length > 0 && (
           <div style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -866,13 +972,9 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
                 <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>These drafts cannot be approved until someone is assigned.</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <Btn variant='warning' onClick={() => { setDFilter('Draft'); setDSearch(''); }}>View Unassigned</Btn>
-            </div>
+            <Btn variant='warning' onClick={() => { setDFilter('Draft'); setDSearch(''); }}>View Unassigned</Btn>
           </div>
         )}
-
-        {/* ── Ready to Approve Banner ── */}
         {readyToApprove.length > 0 && (
           <div style={{ background: 'linear-gradient(135deg,#F0FDF4,#ECFDF5)', border: '1px solid #6EE7B7', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -893,7 +995,6 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
             </div>
           </div>
         )}
-
         <Card>
           <CardHead title="Draft Tickets" count={rows.length} right={
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1053,10 +1154,8 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
   // ── Render: History Table ──────────────────────────────────────────────────────
   const openTicketFromHistory = async (ticketId) => {
-    // First try to find in already-loaded active tickets
     const found = tickets.find(t => String(t.id) === String(ticketId) || t.ticket_no === String(ticketId));
     if (found) { setSelectedTicket(found); setView('official'); return; }
-    // Otherwise fetch it directly
     try {
       const r = await fetch(`${API_URL}/admin/official-tickets`);
       if (!r.ok) return;
@@ -1081,11 +1180,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
                 onMouseEnter={e => e.currentTarget.style.background = '#FFF7ED'}
                 onMouseLeave={e => e.currentTarget.style.background = 'white'}
                 onClick={() => openTicketFromHistory(log.ticket_id)}>
-                <TD>
-                  <span style={{ fontWeight: 700, color: '#F97316', fontFamily: 'monospace', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                    #{log.ticket_id}
-                  </span>
-                </TD>
+                <TD><span style={{ fontWeight: 700, color: '#F97316', fontFamily: 'monospace', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>#{log.ticket_id}</span></TD>
                 <TD><StatusPill s={log.action_type} /></TD>
                 <TD><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'line-through' }}>{log.old_value || '—'}</span><span style={{ color: '#F97316', fontSize: 12 }}>→</span><span style={{ fontSize: 12, fontWeight: 600 }}>{log.new_value}</span></div></TD>
                 <TD s={{ fontSize: 12 }}>{log.performed_by_name || `#${log.performed_by}`}</TD>
@@ -1149,7 +1244,6 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
     }
   };
 
-  // Breadcrumb label for topbar
   const detailLabel = selectedTicket?.title || selectedTask?.title || selectedTask?.full_name;
 
   return (

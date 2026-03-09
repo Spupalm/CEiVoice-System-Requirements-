@@ -33,7 +33,7 @@ Task:
 - Provide a suggested solution as an array of steps.
 - **assignee_category_id**: Identify the ID(s) from the Categories list that best match the nature of the issue.
 - **assigned_to_id**: Select the best worker ID from the Available Assignees list based on their expertise.
-- **Check for Duplicates**: If the User message is similar or related to an issue in the "Existing Drafts" more than 75%, set "match_draft_id" to that ticket's ID.
+- **Check for Duplicates**: If the User message is similar or related to an issue in the "Existing Drafts" more than 85%, set "match_draft_id" to that ticket's ID.
 List of available workers and their expertise categories:
 
 ${JSON.stringify(availableAssignees)}
