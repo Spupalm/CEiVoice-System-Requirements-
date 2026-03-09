@@ -12,8 +12,46 @@ import { sendNotificationEmail } from './services/emailService.js';
 import e from 'express';
 
 const app = express();
-const port = 5001;
+const port = Number(process.env.PORT) || 5001;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const isProduction = process.env.NODE_ENV === 'production';
+const isCaptchaBypassEnabled = process.env.CAPTCHA_BYPASS === 'true' || (!isProduction && !process.env.RECAPTCHA_SECRET_KEY);
+
+const verifyCaptchaToken = async (captchaToken) => {
+    if (!captchaToken) {
+        return { ok: false, reason: 'missing-token' };
+    }
+
+    if (isCaptchaBypassEnabled) {
+        return { ok: true, bypassed: true };
+    }
+
+    try {
+        const captchaResponse = await axios.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            null,
+            {
+                params: {
+                    secret: process.env.RECAPTCHA_SECRET_KEY,
+                    response: captchaToken
+                }
+            }
+        );
+
+        if (captchaResponse.data?.success) {
+            return { ok: true };
+        }
+
+        return {
+            ok: false,
+            reason: 'verification-failed',
+            errors: captchaResponse.data?.['error-codes'] || []
+        };
+    } catch (error) {
+        return { ok: false, reason: 'captcha-service-error', error };
+    }
+};
 
 app.use('/uploads', express.static('uploads'));
 app.use(cors());
@@ -21,11 +59,11 @@ app.use(express.json());
 
 // MySQL Connection
 const db = mysql.createConnection({
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-    port: process.env.port
+    host: process.env.DB_HOST || process.env.host || 'localhost',
+    user: process.env.DB_USER || process.env.user || 'root',
+    password: process.env.DB_PASSWORD || process.env.password || '',
+    database: process.env.DB_NAME || process.env.database || 'ceidb',
+    port: Number(process.env.DB_PORT || process.env.port || 3306)
 });
 
 // Then, and only then, you can use 'db'
@@ -63,19 +101,9 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
-        // ✅ VERIFY CAPTCHA
-        const captchaResponse = await axios.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            null,
-            {
-                params: {
-                    secret: process.env.RECAPTCHA_SECRET_KEY,
-                    response: captchaToken
-                }
-            }
-        );
-
-        if (!captchaResponse.data.success) {
+        const captchaResult = await verifyCaptchaToken(captchaToken);
+        if (!captchaResult.ok) {
+            console.error('Login CAPTCHA verification failed:', captchaResult.reason, captchaResult.errors || '');
             return res.status(400).json({ message: 'CAPTCHA verification failed' });
         }
 
@@ -213,14 +241,9 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
     }
 
     try {
-        // --- 1. ตรวจสอบ reCAPTCHA (เหมือนเดิม) ---
-        const captchaResponse = await axios.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            null,
-            { params: { secret: process.env.RECAPTCHA_SECRET_KEY, response: captchaToken } }
-        );
-
-        if (!captchaResponse.data.success) {
+        const captchaResult = await verifyCaptchaToken(captchaToken);
+        if (!captchaResult.ok) {
+            console.error('Register CAPTCHA verification failed:', captchaResult.reason, captchaResult.errors || '');
             return res.status(400).json({ message: 'CAPTCHA verification failed' });
         }
         const hasEmail = email && email.trim() !== '';

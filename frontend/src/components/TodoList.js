@@ -1,13 +1,18 @@
-// ─── TodoList.jsx ─────────────────────────────────────────────────────────────
-// Role router — delegates rendering to AdminPage, AssigneePage, or UserPage
 import React from 'react';
 import AdminPage from './AdminPage';
 import AssigneePage from './AssigneePage';
 import UserPage from './UserPages';
 
-function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin, userId, role }) {
-  console.log('TodoList Props:', { username, userEmail, profileImage, userId, role });
-
+function TodoList({
+  username,
+  userEmail,
+  onLogout,
+  profileImage,
+  createNewAdmin,
+  createTeam,
+  userId,
+  role,
+}) {
   if (role === 'admin') {
     return (
       <AdminPage
@@ -16,6 +21,7 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
         onLogout={onLogout}
         profileImage={profileImage}
         createNewAdmin={createNewAdmin}
+        createTeam={createTeam}
         userId={userId}
       />
     );
@@ -33,7 +39,6 @@ function TodoList({ username, userEmail, onLogout, profileImage, createNewAdmin,
     );
   }
 
-  // Default: user
   return (
     <UserPage
       username={username}
