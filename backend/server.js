@@ -12,8 +12,46 @@ import { sendNotificationEmail } from './services/emailService.js';
 import e from 'express';
 
 const app = express();
-const port = 5001;
+const port = Number(process.env.PORT) || 5001;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const isProduction = process.env.NODE_ENV === 'production';
+const isCaptchaBypassEnabled = process.env.CAPTCHA_BYPASS === 'true' || (!isProduction && !process.env.RECAPTCHA_SECRET_KEY);
+
+const verifyCaptchaToken = async (captchaToken) => {
+    if (!captchaToken) {
+        return { ok: false, reason: 'missing-token' };
+    }
+
+    if (isCaptchaBypassEnabled) {
+        return { ok: true, bypassed: true };
+    }
+
+    try {
+        const captchaResponse = await axios.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            null,
+            {
+                params: {
+                    secret: process.env.RECAPTCHA_SECRET_KEY,
+                    response: captchaToken
+                }
+            }
+        );
+
+        if (captchaResponse.data?.success) {
+            return { ok: true };
+        }
+
+        return {
+            ok: false,
+            reason: 'verification-failed',
+            errors: captchaResponse.data?.['error-codes'] || []
+        };
+    } catch (error) {
+        return { ok: false, reason: 'captcha-service-error', error };
+    }
+};
 
 app.use('/uploads', express.static('uploads'));
 app.use(cors());
@@ -21,11 +59,11 @@ app.use(express.json());
 
 // MySQL Connection
 const db = mysql.createConnection({
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-    port: process.env.port
+    host: process.env.DB_HOST || process.env.host || 'localhost',
+    user: process.env.DB_USER || process.env.user || 'root',
+    password: process.env.DB_PASSWORD || process.env.password || '',
+    database: process.env.DB_NAME || process.env.database || 'ceidb',
+    port: Number(process.env.DB_PORT || process.env.port || 3306)
 });
 
 // Then, and only then, you can use 'db'
@@ -63,19 +101,9 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
-        // ✅ VERIFY CAPTCHA
-        const captchaResponse = await axios.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            null,
-            {
-                params: {
-                    secret: process.env.RECAPTCHA_SECRET_KEY,
-                    response: captchaToken
-                }
-            }
-        );
-
-        if (!captchaResponse.data.success) {
+        const captchaResult = await verifyCaptchaToken(captchaToken);
+        if (!captchaResult.ok) {
+            console.error('Login CAPTCHA verification failed:', captchaResult.reason, captchaResult.errors || '');
             return res.status(400).json({ message: 'CAPTCHA verification failed' });
         }
 
@@ -214,14 +242,9 @@ app.post('/api/register', uploadProfile.single('profileImage'), async (req, res)
     }
 
     try {
-        // --- 1. ตรวจสอบ reCAPTCHA (เหมือนเดิม) ---
-        const captchaResponse = await axios.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            null,
-            { params: { secret: process.env.RECAPTCHA_SECRET_KEY, response: captchaToken } }
-        );
-
-        if (!captchaResponse.data.success) {
+        const captchaResult = await verifyCaptchaToken(captchaToken);
+        if (!captchaResult.ok) {
+            console.error('Register CAPTCHA verification failed:', captchaResult.reason, captchaResult.errors || '');
             return res.status(400).json({ message: 'CAPTCHA verification failed' });
         }
         const hasEmail = email && email.trim() !== '';
@@ -815,8 +838,10 @@ app.get('/api/users/:userId/tickets', (req, res) => {
             ur.status AS request_status, 
             ur.created_at,
             dt.title AS ai_title,
+            t.id AS official_ticket_id,
             t.status AS official_status,
-            t.ticket_no
+            t.ticket_no,
+            t.resolution_comment
         FROM user_requests ur
         LEFT JOIN draft_tickets dt ON ur.draft_ticket_id = dt.id
         LEFT JOIN tickets t ON (t.title = dt.title AND ur.status = 'ticket')
@@ -976,7 +1001,6 @@ app.get('/api/admin/pending-approvals', (req, res) => {
         res.json(results);
     });
 });
-
 app.put('/api/admin/approve-user/:id', (req, res) => {
     const { id } = req.params;
     const sql = "UPDATE users SET is_approved = 1 WHERE id = ?";
@@ -989,21 +1013,19 @@ app.put('/api/admin/approve-user/:id', (req, res) => {
                 const fullName = rows[0].full_name;
 
                 if (userEmail) {
-                    const approvedHtml =
-                        `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
-            <h2 style="margin: 0; font-size: 24px;">Account Approved</h2>
-        </div>
-        <div style="padding: 30px; background-color: #ffffff;">
-            <p style="font-size: 16px; color: #333;">Hello <strong>${fullName}</strong>,</p>
-            <p style="font-size: 16px; color: #333;">Great news! Your Assignee 👩🏻‍💻 account has been approved by the Administrator.</p>
-            <p style="font-size: 16px; color: #333;">You can now log in to the CEiVoice system and start managing support tickets.</p>
-            <p style="font-size: 15px; color: #666; margin-top: 30px;">Welcome to the team,<br /><strong style="color: #198754;">The CEiVoice Team</strong></p>
-        </div>
-    </div>
-`;
-
+                    const approvedHtml = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #198754; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 24px;">Account Approved</h2>
+                        </div>
+                        <div style="padding: 30px; background-color: #ffffff;">
+                            <p style="font-size: 16px; color: #333;">Hello <strong>${fullName}</strong>,</p>
+                            <p style="font-size: 16px; color: #333;">Great news! Your Assignee 👩🏻‍💻 account has been approved by the Administrator.</p>
+                            <p style="font-size: 16px; color: #333;">You can now log in to the CEiVoice system and start managing support tickets.</p>
+                            <p style="font-size: 15px; color: #666; margin-top: 30px;">Welcome to the team,<br/><strong style="color: #198754;">The CEiVoice Team</strong></p>
+                        </div>
+                    </div>`;
+                    
                     sendNotificationEmail(userEmail, "CEiVoice: Account Approved", approvedHtml);
                 }
             }
@@ -1055,6 +1077,36 @@ app.get('/api/admin/reports', (req, res) => {
                 });
             });
         });
+    });
+});
+
+// 🟢 1. API ดึงคอมเมนต์ของตั๋ว (สำหรับหน้าเว็บฝั่ง User)
+app.get('/api/tickets/:id/comments', (req, res) => {
+    const { id } = req.params;
+    // กรองเอาเฉพาะ Public Comment และเปลี่ยนชื่อตัวแปรให้ตรงกับที่หน้าเว็บ User ต้องการ (message)
+    const sql = `
+        SELECT c.id, c.comment_text AS message, c.created_at, 
+               u.full_name AS user_name, u.email AS user_email, u.profile_image
+        FROM comments c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.ticket_id = ? AND c.comment_type = 'Public'
+        ORDER BY c.created_at ASC
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
+// 🟢 2. API โพสต์คอมเมนต์ใหม่ (สำหรับหน้าเว็บฝั่ง User)
+app.post('/api/tickets/:id/comments', (req, res) => {
+    const { id } = req.params;
+    const { user_id, message } = req.body;
+    // บังคับให้คอมเมนต์จาก User เป็น Public เสมอ
+    const sql = "INSERT INTO comments (ticket_id, user_id, comment_text, comment_type) VALUES (?, ?, ?, 'Public')";
+    db.query(sql, [id, user_id, message], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: result.insertId });
     });
 });
 
