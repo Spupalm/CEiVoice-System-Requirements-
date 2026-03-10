@@ -4,6 +4,7 @@ import TodoList from './components/TodoList';
 import CreateTeam from './components/CreateTeam';
 import CreateNewAdmin from './components/CreateNewAdminNew';
 import './App.css';
+import TrackPage from './components/TrackPage';
 
 function App() {
     const [currentUser, setCurrentUser] = useState(null);
@@ -26,6 +27,11 @@ function App() {
         if (storedEmail) setUserEmail(storedEmail);
     }, []);
 
+    const urlParams = new URLSearchParams(window.location.search);
+    if (window.location.pathname === '/track' || urlParams.get('token')) {
+    return <TrackPage />;
+    }
+ 
     const handleLogin = (username, image, id, role, email) => {
         setCurrentUser(username);
         setCurrentUserId(id);

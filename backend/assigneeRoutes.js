@@ -1,6 +1,45 @@
 import express from 'express';
+import crypto from 'crypto';
 import { sendNotificationEmail } from './services/emailService.js';
 const router = express.Router();
+
+const generateTrackingToken = () => crypto.randomBytes(8).toString('hex');
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const FRONTEND_URL = process.env.FRONTEND_URL;
+
+// Helper: get a fresh tracking URL for a user linked to a ticket
+async function getTrackingSection(db, ticketId, userEmail) {
+    try {
+        const [rows] = await db.promise().query(
+            `SELECT ur.id AS request_id
+             FROM user_requests ur
+             INNER JOIN tickets_user_mapping tum ON tum.request_id = ur.id
+             WHERE tum.ticket_id = ? AND ur.user_email = ?
+             LIMIT 1`,
+            [ticketId, userEmail]
+        );
+        if (rows.length === 0) return '';
+
+        const newRawToken = generateTrackingToken();
+        const newTokenHash = hashToken(newRawToken);
+        await db.promise().query(
+            `UPDATE user_requests SET tracking_token_hash = ? WHERE id = ?`,
+            [newTokenHash, rows[0].request_id]
+        );
+        const trackingUrl = `${FRONTEND_URL}/track?token=${newRawToken}`;
+        return `
+            <div style="background-color:#f0f7ff;border:1px solid #b3d4f5;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
+                <p style="margin:0 0 12px;font-size:14px;color:#555;">Track your request status at any time:</p>
+                <a href="${trackingUrl}" style="display:inline-block;background-color:#0d6efd;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+                    🔍 Track My Request
+                </a>
+                <p style="margin:12px 0 0;font-size:11px;color:#999;">This link does not require login.</p>
+            </div>`;
+    } catch (err) {
+        console.error('getTrackingSection error:', err);
+        return '';
+    }
+}
 
 export default (db) => {
 
@@ -55,9 +94,11 @@ export default (db) => {
                         const { ticket_no, title, commenter_name } = rows[0];
 
                         // Loop ส่งหาทุกคนที่เชื่อมโยงกับ Ticket นี้
-                        rows.forEach(row => {
-                            // ส่งอีเมลถ้ามีที่อยู่เมล และคนคอมเมนต์ไม่ใช่เจ้าของเมลนั้น
-                            if (row.user_email) {
+                        // ใช้ async loop เพื่อ await getTrackingSection ได้
+                        (async () => {
+                            for (const row of rows) {
+                                if (!row.user_email) continue;
+                                const trackingSection = await getTrackingSection(db, ticket_id, row.user_email);
                                 const commentHtml = `
                     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #0dcaf0; color: #000; padding: 20px; text-align: center;">
@@ -77,13 +118,14 @@ export default (db) => {
                                     <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
                                     <p style="margin-top: 0; color: #333; font-size: 16px; white-space: pre-wrap;">${comment_text}</p>
                                 </div>
-                                
+
                                 <p style="font-size: 15px; color: #666;">Thank you,<br/><strong style="color: #0dcaf0;">The CEiVoice Team</strong></p>
                             </div>
+                            ${trackingSection}
                         </div>`;
                                 sendNotificationEmail(row.user_email, `CEiVoice: New update on Ticket ${ticket_no}`, commentHtml);
                             }
-                        });
+                        })();
                     }
                 });
             }
@@ -212,16 +254,17 @@ export default (db) => {
 
                 db.query(getEmailSql, [id], (emailErr, rows) => {
                     if (!emailErr && rows.length > 0) {
-                        // Loop ส่งอีเมลแจ้งเตือนทุกคน
                         console.log("🔍 Debug: getEmailSql Result for Status Change:", rows);
-                        rows.forEach(row => {
-                            if (row.user_email) {
+                        (async () => {
+                            for (const row of rows) {
+                                if (!row.user_email) continue;
                                 const { user_email, assignee_name, original_message, ticket_title } = row;
                                 const isSolved = status === 'Solved';
                                 const color = isSolved ? '#198754' : '#dc3545';
                                 const bgColor = isSolved ? '#e8f5e9' : '#f8d7da';
                                 const headerEmoji = isSolved ? '✅' : '❌';
                                 const headerMsg = isSolved ? 'has been successfully resolved.' : 'has been marked as failed/unresolved.';
+                                const trackingSection = await getTrackingSection(db, id, user_email);
                                 const solvedHtmlTemplate = `
                         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: ${color}; color: white; padding: 20px; text-align: center;">
@@ -247,11 +290,12 @@ export default (db) => {
                                 
                                 <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you for using CEiVoice Support!</p>
                             </div>
+                        ${trackingSection}
                         </div>`;
 
                                 sendNotificationEmail(user_email, `CEiVoice: Request ${status}`, solvedHtmlTemplate);
                             }
-                        });
+                        })();
                     }
                 });
 

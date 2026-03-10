@@ -10,10 +10,13 @@ import { generateSupportTicket } from "./services/aiService.js";
 import assigneeRoutes from './assigneeRoutes.js';
 import { sendNotificationEmail } from './services/emailService.js';
 import e from 'express';
+import crypto from 'crypto';
 
 const app = express();
 const port = Number(process.env.PORT) || 5001;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const generateTrackingToken = () => crypto.randomBytes(8).toString('hex');
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isCaptchaBypassEnabled = process.env.CAPTCHA_BYPASS === 'true' || (!isProduction && !process.env.RECAPTCHA_SECRET_KEY);
@@ -383,7 +386,19 @@ app.post('/api/user-requests', (req, res) => {
         }
 
         const requestId = result.insertId;
+        const rawToken = generateTrackingToken();
+        const tokenHash = hashToken(rawToken);
+        const tokenLast4 = rawToken.slice(-4);
+        const tokenExpiry = null
 
+        await db.promise().query(
+        `UPDATE user_requests
+        SET tracking_token_hash = ?, tracking_token_last4 = ?, tracking_token_expires_at = ?
+        WHERE id = ?`,
+        [tokenHash, tokenLast4, tokenExpiry, requestId]
+        );
+
+        const trackingUrl = `${process.env.FRONTEND_URL}/track?token=${rawToken}`;
         // 🟢 แทนที่โค้ดส่งอีเมลเดิมด้วยชุดนี้
         const receivedHtmlTemplate = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
@@ -404,6 +419,13 @@ app.post('/api/user-requests', (req, res) => {
                 <p style="font-size: 15px; color: #666;">We will notify you once an assignee reviews and resolves your request.</p>
                 <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
             </div>
+            <div style="background-color:#f0f7ff;border:1px solid #b3d4f5;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
+            <p style="margin:0 0 12px;font-size:14px;color:#555;">Track your request status at any time:</p>
+            <a href="${trackingUrl}" style="display:inline-block;background-color:#0d6efd;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+                🔍 Track My Request
+            </a>
+            <p style="margin:12px 0 0;font-size:11px;color:#999;">This link is valid for 30 days and does not require login.</p>
+            </div>            
         </div>
         `;
 
@@ -754,38 +776,64 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
         );
         await Promise.all([updateDraft, updateRequest, updateAssigneeWorkStatus]);
 
-        // 🟢 5. ส่งอีเมลแจ้งเตือนเมื่อตั๋วถูกสร้างทางการ
-        const approvedHtml = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-                <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
-                </div>
-                <div style="padding: 30px; background-color: #ffffff;">
-                    <p style="font-size: 16px; color: #333;">Hello,</p>
-                    <p style="font-size: 16px; color: #333;">Your request has been reviewed and officially converted into a Support Ticket.</p>
-                    
-                    <div style="background-color: #e2e3e5; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                        <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ticket No: <span style="color: #0d6efd;">${ticketNo}</span></h3>
-                        <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Topic:</strong> ${title}</p>
-                        <p style="margin-top: 0; color: #555; font-size: 14px;"><strong>Status:</strong> New</p>
-                    </div>
-                    
-                    <p style="font-size: 15px; color: #666;">Our assignee team will begin working on it shortly.</p>
-                    <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
-                </div>
-            </div>`;
-
-        // 🟢 3. ลูปส่งอีเมลหาทุกคนที่มี Email ในระบบ
+        // 🟢 5. ส่งอีเมลแจ้งเตือนเมื่อตั๋วถูกสร้างทางการ (พร้อม Tracking Link)
         if (allRelatedUsers.length > 0) {
-            allRelatedUsers.forEach(user => {
-                if (user.user_email) {
-                    sendNotificationEmail(
-                        user.user_email,
-                        `CEiVoice: Ticket Created [${ticketNo}]`,
-                        approvedHtml
+            for (const user of allRelatedUsers) {
+                if (!user.user_email) continue;
+
+                // ดึง request_id ที่ map กับ ticket นี้ และเป็นของ user คนนี้
+                const [tokenRows] = await db.promise().query(
+                    `SELECT ur.id AS request_id, ur.tracking_token_hash
+                     FROM user_requests ur
+                     INNER JOIN tickets_user_mapping tum ON tum.request_id = ur.id
+                     WHERE tum.ticket_id = ? AND ur.user_email = ?
+                     LIMIT 1`,
+                    [newTicketId, user.user_email]
+                );
+
+                // สร้าง tracking token ใหม่และ update ลง DB (เพราะเราไม่เก็บ raw token)
+                let trackingSection = '';
+                if (tokenRows.length > 0) {
+                    const newRawToken = generateTrackingToken();
+                    const newTokenHash = hashToken(newRawToken);
+                    await db.promise().query(
+                        `UPDATE user_requests SET tracking_token_hash = ? WHERE id = ?`,
+                        [newTokenHash, tokenRows[0].request_id]
                     );
+                    const trackingUrl = `${process.env.FRONTEND_URL}/track?token=${newRawToken}`;
+                    trackingSection = `
+                        <div style="background-color:#f0f7ff;border:1px solid #b3d4f5;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
+                            <p style="margin:0 0 12px;font-size:14px;color:#555;">Track your request status at any time:</p>
+                            <a href="${trackingUrl}" style="display:inline-block;background-color:#0d6efd;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+                                🔍 Track My Request
+                            </a>
+                            <p style="margin:12px 0 0;font-size:11px;color:#999;">This link does not require login.</p>
+                        </div>`;
                 }
-            });
+
+                const approvedHtml = `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+                        </div>
+                        <div style="padding: 30px; background-color: #ffffff;">
+                            <p style="font-size: 16px; color: #333;">Hello,</p>
+                            <p style="font-size: 16px; color: #333;">Your request has been reviewed and officially converted into a Support Ticket.</p>
+                            
+                            <div style="background-color: #e2e3e5; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                                <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ticket No: <span style="color: #0d6efd;">${ticketNo}</span></h3>
+                                <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Topic:</strong> ${title}</p>
+                                <p style="margin-top: 0; color: #555; font-size: 14px;"><strong>Status:</strong> New</p>
+                            </div>
+                            
+                            <p style="font-size: 15px; color: #666;">Our assignee team will begin working on it shortly.</p>
+                            <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
+                        </div>
+                        ${trackingSection}
+                    </div>`;
+
+                sendNotificationEmail(user.user_email, `CEiVoice: Ticket Created [${ticketNo}]`, approvedHtml);
+            }
         }
 
         res.json({
@@ -1151,6 +1199,64 @@ app.get('/api/ticket-history', (req, res) => {
         }
         res.json(results);
     });
+});
+
+app.get('/api/track/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!token || token.length < 10) return res.status(400).json({ error: 'Invalid tracking token.' });
+
+  try {
+    const tokenHash = hashToken(token);
+    const [rows] = await db.promise().query(
+      `SELECT
+         ur.id              AS request_id,
+         ur.message         AS original_message,
+         ur.status          AS request_status,
+         ur.created_at      AS submitted_at,
+         ur.tracking_token_expires_at,
+         dt.title           AS draft_title,
+         dt.category        AS category,
+         dt.summary         AS summary,
+         t.ticket_no,
+         t.title            AS ticket_title,
+         t.status           AS ticket_status,
+         t.updated_at       AS last_updated,
+         t.deadline
+       FROM user_requests ur
+       LEFT JOIN draft_tickets dt ON ur.draft_ticket_id = dt.id
+       LEFT JOIN tickets_user_mapping tum ON tum.request_id = ur.id
+       LEFT JOIN tickets t ON tum.ticket_id = t.id
+       WHERE ur.tracking_token_hash = ?
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Tracking link not found or has expired.' });
+
+    const row = rows[0];
+    if (row.tracking_token_expires_at && new Date() > new Date(row.tracking_token_expires_at)) {
+      return res.status(410).json({ error: 'This tracking link has expired.' });
+    }
+
+    res.json({
+      request_id:       row.request_id,
+      original_message: row.original_message,
+      request_status:   row.request_status,
+      submitted_at:     row.submitted_at,
+      category:         row.category,
+      summary:          row.summary,
+      draft_title:      row.draft_title,
+      ticket_no:        row.ticket_no,
+      ticket_title:     row.ticket_title,
+      ticket_status:    row.ticket_status,
+      last_updated:     row.last_updated,
+      deadline:         row.deadline,
+      expires_at:       row.tracking_token_expires_at,
+    });
+  } catch (err) {
+    console.error('Track error:', err);
+    res.status(500).json({ error: 'Server error.' });
+  }
 });
 
 app.listen(port, () => {
