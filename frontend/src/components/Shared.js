@@ -88,18 +88,33 @@ export const Btn = ({ onClick, disabled, children, variant = 'outline', style: s
   );
 };
 
-export const StatCard = ({ label, value, sub, accent = '#F97316' }) => (
-  <Card>
-    <div style={{ padding: '20px 24px' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 32, fontWeight: 800, color: '#1A1A2E', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 6 }}>{sub}</div>}
-      <div style={{ height: 3, background: '#F3F4F6', borderRadius: 2, marginTop: 12 }}>
-        <div style={{ height: '100%', width: '55%', background: accent, borderRadius: 2 }} />
-      </div>
+export const StatCard = ({ label, value, sub, accent = '#F97316', progress }) => {
+  const prog = typeof progress === 'number' ? progress : 0.5;
+  return (
+    <div style={{
+      background: 'white',
+      borderRadius: 12,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      padding: '20px 24px 18px 24px',
+      minWidth: 0,
+      minHeight: 110,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start',
+      position: 'relative',
+      overflow: 'hidden',
+      gap: 2,
+    }}>
+    <div style={{ color: '#A0AEC0', fontWeight: 600, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+    <div style={{ color: '#23233a', fontWeight: 800, fontSize: 32, margin: '0 0 2px 0', lineHeight: 1 }}>{value}</div>
+    <div style={{ color: '#9CA3AF', fontSize: 13, fontWeight: 400, marginBottom: 8 }}>{sub}</div>
+    <div style={{ width: '100%', height: 4, background: '#F3F4F6', borderRadius: 2, marginTop: 'auto', position: 'absolute', left: 0, bottom: 0 }}>
+      <div style={{ width: `${Math.max(0, Math.min(1, prog)) * 100}%`, height: '100%', background: accent, borderRadius: 2, transition: 'width 0.3s' }} />
     </div>
-  </Card>
-);
+    </div>
+  );
+}
 
 export const FilterBar = ({ search, onSearch, filter, onFilter, filterOpts, placeholder }) => (
   <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -179,43 +194,112 @@ export const OfficialStatusBadge = ({ status }) => {
 };
 
 // ─── Shared Sidebar ───────────────────────────────────────────────────────────
-export const Sidebar = ({ navItems, activeView, onNavigate, onLogout, profileImage, username, userEmail, role }) => (
-  <div style={{ width: 210, background: '#1A1A2E', display: 'flex', flexDirection: 'column', flexShrink: 0, boxShadow: '2px 0 8px rgba(0,0,0,0.15)' }}>
-    <div style={{ padding: '14px 16px', borderBottom: '1px solid #2D2D4E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <img src="/CeiLogoColor.png" style={{ height: 44, objectFit: 'contain' }} alt="CEI" onError={e => e.target.style.display = 'none'} />
-    </div>
-    <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid #2D2D4E', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-      <Avatar img={profileImage} size={54} name={username} />
-      <div style={{ color: 'white', fontSize: 13, fontWeight: 600, marginTop: 10 }}>{username}</div>
-      {userEmail && userEmail !== 'null' && userEmail.trim() !== '' && (
-        <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 3, wordBreak: 'break-all', padding: '0 6px', lineHeight: 1.4 }}>{userEmail}</div>
+export const Sidebar = ({ navItems, activeView, onNavigate, onLogout, profileImage, username, userEmail, role, collapsed }) => (
+  <div style={{ width: collapsed ? 56 : 210, background: '#1A1A2E', display: 'flex', flexDirection: 'column', flexShrink: 0, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', transition: 'width 0.2s', position: 'relative' }}>
+    <style>{`
+      .sidebar-nav-active.sidebar-collapsed {
+        background: #F97316 !important;
+        color: white !important;
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+        margin: 0 auto 8px auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-left: none !important;
+      }
+    `}</style>
+    <div style={{ padding: '14px 16px', borderBottom: '1px solid #2D2D4E', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 44 }}>
+      {!collapsed && (
+        <img src="/CeiLogoColor.png" style={{ height: 44, objectFit: 'contain' }} alt="CEI" onError={e => e.target.style.display = 'none'} />
       )}
-      <div style={{ marginTop: 8 }}>
-        {role === 'admin' && <Pill bg='rgba(239,68,68,0.15)' color='#EF4444'>Admin</Pill>}
-        {role === 'assignee' && <Pill bg='rgba(59,130,246,0.15)' color='#60A5FA'>Assignee</Pill>}
-        {role === 'user' && <Pill bg='rgba(255,255,255,0.07)' color='#9CA3AF'>Personal Account</Pill>}
-      </div>
+      {collapsed && (
+        <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+          {/* Improved CSS vector logo for collapsed sidebar: true C with dot */}
+          <div style={{
+            position: 'absolute',
+            width: 17,
+            height: 15,
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'block',
+          }}>
+            {/* Main C: orange circle */}
+            <div style={{
+              position: 'absolute',
+              width: 15,
+              height: 15,
+              background: '#F36601',
+              borderRadius: '50%',
+              left: 0,
+              top: 0,
+            }} />
+            {/* Circular cutout for C opening */}
+            <div style={{
+              position: 'absolute',
+              width: 9,
+              height: 9,
+              background: '#23233a', // match sidebar bg
+              borderRadius: '50%',
+              left: 8,
+              top: 3,
+            }} />
+            {/* Dot: yellow circle */}
+            <div style={{
+              position: 'absolute',
+              width: 3,
+              height: 3,
+              background: '#FFB000',
+              borderRadius: '50%',
+              left: 13,
+              top: 6,
+              boxShadow: '0 0 1px #F36601',
+            }} />
+          </div>
+        </div>
+      )}
     </div>
-    <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
+    {!collapsed && (
+      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid #2D2D4E', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <Avatar img={profileImage} size={54} name={username} />
+        <div style={{ color: 'white', fontSize: 13, fontWeight: 600, marginTop: 10 }}>{username}</div>
+        {userEmail && userEmail !== 'null' && userEmail.trim() !== '' && (
+          <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 3, wordBreak: 'break-all', padding: '0 6px', lineHeight: 1.4 }}>{userEmail}</div>
+        )}
+        <div style={{ marginTop: 8 }}>
+          {role === 'admin' && <Pill bg='rgba(239,68,68,0.15)' color='#EF4444'>Admin</Pill>}
+          {role === 'assignee' && <Pill bg='rgba(59,130,246,0.15)' color='#60A5FA'>Assignee</Pill>}
+          {role === 'user' && <Pill bg='rgba(255,255,255,0.07)' color='#9CA3AF'>Personal Account</Pill>}
+        </div>
+      </div>
+    )}
+    <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
       {navItems.map(item => {
         const active = activeView === item.view;
+        const navClass = active ? ('sidebar-nav-active' + (collapsed ? ' sidebar-collapsed' : '')) : '';
         return (
           <div key={item.view} onClick={() => onNavigate(item.view)}
-            style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: active ? '#F97316' : 'transparent', color: active ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: active ? 600 : 400, borderLeft: active ? '3px solid rgba(255,255,255,0.3)' : '3px solid transparent', transition: 'all 0.15s' }}
+            className={navClass}
+            style={{ padding: collapsed ? '10px 0' : '10px 16px', display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, cursor: 'pointer', background: active ? '#F97316' : 'transparent', color: active ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: active ? 600 : 400, borderLeft: active && !collapsed ? '3px solid rgba(255,255,255,0.3)' : '3px solid transparent', transition: 'all 0.15s', justifyContent: collapsed ? 'center' : 'flex-start' }}
             onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#2D2D4E'; e.currentTarget.style.color = 'white'; } }}
             onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; } }}>
-            <img src={item.icon} alt="" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(0.6)' }} onError={e => e.target.style.display = 'none'} />
-            <span style={{ flex: 1 }}>{item.label}</span>
+            <img src={item.icon} alt="" style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0, filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(0.6)' }} onError={e => e.target.style.display = 'none'} />
+            {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
           </div>
         );
       })}
     </nav>
     <div onClick={onLogout}
-      style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: '#EF4444', fontSize: 13, borderTop: '1px solid #2D2D4E', transition: 'background 0.15s' }}
+      style={{ padding: collapsed ? '14px 0' : '14px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: '#EF4444', fontSize: 13, borderTop: '1px solid #2D2D4E', transition: 'background 0.15s', justifyContent: collapsed ? 'center' : 'flex-start' }}
       onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       <img src="/logout.png" alt="logout" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'invert(40%) sepia(80%) saturate(500%) hue-rotate(320deg)' }} onError={e => e.target.style.display = 'none'} />
-      <span>Logout</span>
+      {!collapsed && <span>Logout</span>}
     </div>
   </div>
 );

@@ -1,13 +1,6 @@
 // ─── AdminPage.jsx ────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  API_URL, toast,
-  Pill, StatusPill, Avatar, Card, CardHead, TH, TD, EmptyRow, Btn, StatCard, FilterBar,
-  fmtFull, fmtDate, fmtTime,
-  OFFICIAL_STATUS_MAP, TIMELINE_COLORS,
-  OfficialStatusBadge,
-  Sidebar,
-} from './Shared';
+import { API_URL, toast, Pill, StatusPill, Avatar, Card, CardHead, TH, TD, EmptyRow, Btn, StatCard, FilterBar, fmtFull, fmtDate, fmtTime, OFFICIAL_STATUS_MAP, TIMELINE_COLORS, OfficialStatusBadge, Sidebar } from './Shared';
 
 // ─── Approvals Sub-View ───────────────────────────────────────────────────────
 const ApprovalsView = () => {
@@ -264,14 +257,18 @@ const ReportsView = () => {
       </div>
 
       {/* Stat cards — 4 columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+      <div
+        className="admin-stat-grid"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+      >
         <StatCard label="Total Tickets"   value={loading ? '…' : s.total}                                  accent='#F97316' sub={periodLabel} />
         <StatCard label="Avg. Resolution" value={loading ? '…' : `${parseFloat(s.avgTime || 0).toFixed(1)}h`} accent='#10B981' sub="avg per ticket" />
         <StatCard label="Current Backlog" value={loading ? '…' : backlog}                                  accent='#F59E0B' sub="open tickets" />
         <StatCard label="Resolution Rate" value={loading ? '…' : `${resolveRate}%`}                        accent='#3B82F6' sub={`${resolved} solved`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      // CHANGED
+      <div className="admin-report-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card>
           <CardHead title="By Status" right={<Pill bg='#FFF7ED' color='#F97316'>{periodLabel}</Pill>} />
           <div style={{ padding: '16px 20px' }}>
@@ -495,7 +492,8 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
       <style>{`@keyframes fdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', marginBottom: 16, overflow: 'hidden' }}>
         <div style={{ height: 4, background: `linear-gradient(90deg, ${statusCfg.color}, ${statusCfg.color}88)` }} />
-        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        // CHANGED
+        <div className="ticket-detail-header" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -508,7 +506,8 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
               <span style={{ fontSize: 11, color: '#9CA3AF' }}>Created {fmtFull(t.created_at)}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
+          // CHANGED
+          <div className="ticket-detail-meta" style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
             {t.assignee_name && (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 }}>Assignee</div>
@@ -524,14 +523,16 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
           </div>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px 200px', gap: 14, alignItems: 'start' }}>
+      // CHANGED
+      <div className="ticket-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 280px 200px', gap: 14, alignItems: 'start', minWidth: 0 }}>
         <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
           <div style={{ padding: '13px 18px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 14 }}>💬</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>Discussion</span>
             {comments.length > 0 && <Pill bg='#FFF7ED' color='#F97316'>{comments.length}</Pill>}
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', maxHeight: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          // CHANGED
+          <div className="ticket-discussion-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', maxHeight: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: 13 }}>⏳ Loading…</div>
             ) : comments.length === 0 ? (
@@ -607,7 +608,8 @@ const AdminTicketDetail = ({ ticket, onBack }) => {
             </div>
           )}
         </div>
-        <div style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden', position: 'sticky', top: 0 }}>
+        // CHANGED
+        <div className="ticket-timeline" style={{ background: 'white', borderRadius: 14, border: '1px solid #F3F4F6', overflow: 'hidden', position: 'sticky', top: 0 }}>
           <div style={{ padding: '13px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12 }}>🕐</span><span style={{ fontSize: 12, fontWeight: 700, color: '#1A1A2E' }}>Timeline</span>
           </div>
@@ -777,9 +779,16 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
   // ── Render: Draft Edit ─────────────────────────────────────────────────────────
   const renderDraftEdit = () => (
-    <Card>
-      <style>{`@keyframes fdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', display: 'flex', alignItems: 'center', gap: 14 }}>
+    // CHANGED
+    <Card style={{ overflowY: 'auto', maxHeight: '100vh' }}>
+  
+      <style>{`
+        @keyframes fdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @media (max-width: 400px) {
+          .draft-edit-grid-responsive { grid-template-columns: 1fr !important; min-width: 0 !important; }
+        }
+      `}</style>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <button onClick={() => setSelectedTask(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -788,8 +797,18 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
           </div>
           <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Created {fmtDate(selectedTask.created_at)}</div>
         </div>
-        <Btn variant='outline' onClick={() => saveDraft(selectedTask.id, selectedTask)} disabled={loading}>💾 Save Draft</Btn>
-        <Btn variant='primary' onClick={() => approveToOfficial(selectedTask)} disabled={loading}>✓ Approve & Submit</Btn>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 8,
+            flexShrink: 0,
+          }}
+          className="draft-action-buttons"
+        >
+          <Btn variant='outline' onClick={() => saveDraft(selectedTask.id, selectedTask)} disabled={loading}>💾 Save Draft</Btn>
+          <Btn variant='primary' onClick={() => approveToOfficial(selectedTask)} disabled={loading}>✓ Approve & Submit</Btn>
+        </div>
       </div>
 
       {/* ── Merge Suggestion Banner (injected just below header) ── */}
@@ -801,7 +820,11 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr' }}>
+    
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        
+       
+        <div className="draft-edit-grid-responsive" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', minWidth: 640 }}>
         <div style={{ padding: 24, borderRight: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Ticket Details</div>
           <div>
@@ -895,6 +918,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
       <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
@@ -1066,7 +1090,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
             filterOpts={[{ value: 'all', label: 'All Status' }, { value: 'New', label: 'New' }, { value: 'Assigned', label: 'Assigned' }, { value: 'Solving', label: 'Solving' }, { value: 'Solved', label: 'Solved' }, { value: 'Failed', label: 'Failed' }]} />
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
             <thead><tr><TH>Ticket No</TH><TH>Title</TH><TH>Category</TH><TH>Assignee</TH><TH>Status</TH><TH>Deadline</TH><TH>Updated</TH></tr></thead>
             <tbody>
               {rows.map(t => (
@@ -1093,6 +1117,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
   // ── Render: Requests Table ─────────────────────────────────────────────────────
   const renderRequests = () => {
     const rows = requests.filter(r => rFilter === 'all' || r.status === rFilter).filter(r => !rSearch || [r.message, r.user_email].some(v => v?.toLowerCase().includes(rSearch.toLowerCase())));
+    // CHANGED
     return (
       <Card>
         <CardHead title="User Requests" count={rows.length} />
@@ -1100,21 +1125,23 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
           <FilterBar search={rSearch} onSearch={setRSearch} filter={rFilter} onFilter={setRFilter} placeholder="Search by message or email..."
             filterOpts={[{ value: 'all', label: 'All Status' }, { value: 'received', label: 'Received' }, { value: 'draft', label: 'Draft' }, { value: 'ticket', label: 'Ticket' }]} />
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><TH>ID</TH><TH>Message</TH><TH>User</TH><TH>Status</TH><TH>Date</TH></tr></thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.id} style={{ background: 'white' }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                <TD s={{ fontWeight: 700, color: '#9CA3AF' }}>{r.id}</TD>
-                <TD s={{ fontWeight: 500, color: '#1A1A2E' }}>{r.message}</TD>
-                <TD s={{ fontSize: 12, color: '#6B7280' }}>{r.user_email}</TD>
-                <TD><StatusPill s={r.status} /></TD>
-                <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{fmtFull(r.created_at)}</TD>
-              </tr>
-            ))}
-            {rows.length === 0 && <EmptyRow cols={5} />}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+            <thead><tr><TH>ID</TH><TH>Message</TH><TH>User</TH><TH>Status</TH><TH>Date</TH></tr></thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id} style={{ background: 'white' }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                  <TD s={{ fontWeight: 700, color: '#9CA3AF' }}>{r.id}</TD>
+                  <TD s={{ fontWeight: 500, color: '#1A1A2E' }}>{r.message}</TD>
+                  <TD s={{ fontSize: 12, color: '#6B7280' }}>{r.user_email}</TD>
+                  <TD><StatusPill s={r.status} /></TD>
+                  <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{fmtFull(r.created_at)}</TD>
+                </tr>
+              ))}
+              {rows.length === 0 && <EmptyRow cols={5} />}
+            </tbody>
+          </table>
+        </div>
       </Card>
     );
   };
@@ -1122,6 +1149,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
   // ── Render: Users Table ────────────────────────────────────────────────────────
   const renderUsers = () => {
     const rows = users.filter(u => uFilter === 'all' || u.role === uFilter).filter(u => !uSearch || [u.username, u.full_name, u.email].some(v => v?.toLowerCase().includes(uSearch.toLowerCase())));
+    // CHANGED
     return (
       <Card>
         <CardHead title="All Users" count={rows.length} right={
@@ -1134,20 +1162,22 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
           <FilterBar search={uSearch} onSearch={setUSearch} filter={uFilter} onFilter={setUFilter} placeholder="Search by name, username, email..."
             filterOpts={[{ value: 'all', label: 'All Roles' }, { value: 'admin', label: 'Admin' }, { value: 'assignee', label: 'Assignee' }, { value: 'user', label: 'User' }]} />
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><TH>User</TH><TH>Role</TH><TH>Skills</TH><TH s={{ textAlign: 'right' }}>Action</TH></tr></thead>
-          <tbody>
-            {rows.map(u => (
-              <tr key={u.id} style={{ background: 'white' }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                <TD><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar img={u.profile_image} size={34} /><div><div style={{ fontWeight: 600, color: '#1A1A2E', fontSize: 13 }}>{u.full_name || u.username}</div><div style={{ color: '#9CA3AF', fontSize: 11 }}>@{u.username}</div></div></div></TD>
-                <TD><Pill bg={u.role === 'admin' ? '#FFEBEE' : u.role === 'assignee' ? '#E3F2FD' : '#F3F4F6'} color={u.role === 'admin' ? '#C62828' : u.role === 'assignee' ? '#1565C0' : '#6B7280'}>{u.role}</Pill></TD>
-                <TD><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{u.skill_names ? u.skill_names.split(',').map((sk, i) => <Pill key={i} bg='#E3F2FD' color='#1565C0'>{sk.trim()}</Pill>) : <span style={{ color: '#9CA3AF', fontSize: 12 }}>—</span>}</div></TD>
-                <TD s={{ textAlign: 'right' }}><Btn variant='ghost' onClick={() => setSelectedTask({ ...u, skills: u.skill_ids ? u.skill_ids.split(',').map(Number) : [] })}>Manage</Btn></TD>
-              </tr>
-            ))}
-            {rows.length === 0 && <EmptyRow cols={4} />}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+            <thead><tr><TH>User</TH><TH>Role</TH><TH>Skills</TH><TH s={{ textAlign: 'right' }}>Action</TH></tr></thead>
+            <tbody>
+              {rows.map(u => (
+                <tr key={u.id} style={{ background: 'white' }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                  <TD><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar img={u.profile_image} size={34} /><div><div style={{ fontWeight: 600, color: '#1A1A2E', fontSize: 13 }}>{u.full_name || u.username}</div><div style={{ color: '#9CA3AF', fontSize: 11 }}>@{u.username}</div></div></div></TD>
+                  <TD><Pill bg={u.role === 'admin' ? '#FFEBEE' : u.role === 'assignee' ? '#E3F2FD' : '#F3F4F6'} color={u.role === 'admin' ? '#C62828' : u.role === 'assignee' ? '#1565C0' : '#6B7280'}>{u.role}</Pill></TD>
+                  <TD><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{u.skill_names ? u.skill_names.split(',').map((sk, i) => <Pill key={i} bg='#E3F2FD' color='#1565C0'>{sk.trim()}</Pill>) : <span style={{ color: '#9CA3AF', fontSize: 12 }}>—</span>}</div></TD>
+                  <TD s={{ textAlign: 'right' }}><Btn variant='ghost' onClick={() => setSelectedTask({ ...u, skills: u.skill_ids ? u.skill_ids.split(',').map(Number) : [] })}>Manage</Btn></TD>
+                </tr>
+              ))}
+              {rows.length === 0 && <EmptyRow cols={4} />}
+            </tbody>
+          </table>
+        </div>
       </Card>
     );
   };
@@ -1168,37 +1198,42 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
   const renderHistory = () => {
     const rows = history.filter(h => !hSearch || String(h.ticket_id).includes(hSearch) || h.action_type?.toLowerCase().includes(hSearch.toLowerCase()) || h.performed_by_name?.toLowerCase().includes(hSearch.toLowerCase()));
+    // CHANGED
     return (
       <Card>
         <CardHead title="Ticket History" count={rows.length} right={<Pill bg='#F3F4F6' color='#6B7280'>👁 Click a row to view ticket</Pill>} />
         <div style={{ padding: '14px 20px 0' }}><FilterBar search={hSearch} onSearch={setHSearch} placeholder="Search by ticket ID, action, or user..." /></div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><TH>Ticket</TH><TH>Action</TH><TH>Change</TH><TH>Performed By</TH><TH>Time</TH><TH></TH></tr></thead>
-          <tbody>
-            {rows.map((log, i) => (
-              <tr key={i} style={{ background: 'white', cursor: 'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#FFF7ED'}
-                onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                onClick={() => openTicketFromHistory(log.ticket_id)}>
-                <TD><span style={{ fontWeight: 700, color: '#F97316', fontFamily: 'monospace', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>#{log.ticket_id}</span></TD>
-                <TD><StatusPill s={log.action_type} /></TD>
-                <TD><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'line-through' }}>{log.old_value || '—'}</span><span style={{ color: '#F97316', fontSize: 12 }}>→</span><span style={{ fontSize: 12, fontWeight: 600 }}>{log.new_value}</span></div></TD>
-                <TD s={{ fontSize: 12 }}>{log.performed_by_name || `#${log.performed_by}`}</TD>
-                <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(log.created_at).toLocaleString('th-TH')}</TD>
-                <TD s={{ textAlign: 'right' }}><span style={{ fontSize: 11, color: '#9CA3AF' }}>View →</span></TD>
-              </tr>
-            ))}
-            {rows.length === 0 && <EmptyRow cols={6} />}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+            <thead><tr><TH>Ticket</TH><TH>Action</TH><TH>Change</TH><TH>Performed By</TH><TH>Time</TH><TH></TH></tr></thead>
+            <tbody>
+              {rows.map((log, i) => (
+                <tr key={i} style={{ background: 'white', cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#FFF7ED'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  onClick={() => openTicketFromHistory(log.ticket_id)}>
+                  <TD><span style={{ fontWeight: 700, color: '#F97316', fontFamily: 'monospace', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>#{log.ticket_id}</span></TD>
+                  <TD><StatusPill s={log.action_type} /></TD>
+                  <TD><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'line-through' }}>{log.old_value || '—'}</span><span style={{ color: '#F97316', fontSize: 12 }}>→</span><span style={{ fontSize: 12, fontWeight: 600 }}>{log.new_value}</span></div></TD>
+                  <TD s={{ fontSize: 12 }}>{log.performed_by_name || `#${log.performed_by}`}</TD>
+                  <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(log.created_at).toLocaleString('th-TH')}</TD>
+                  <TD s={{ textAlign: 'right' }}><span style={{ fontSize: 11, color: '#9CA3AF' }}>View →</span></TD>
+                </tr>
+              ))}
+              {rows.length === 0 && <EmptyRow cols={6} />}
+            </tbody>
+          </table>
+        </div>
       </Card>
     );
   };
 
+  // CHANGED
   // ── Render: Dashboard ──────────────────────────────────────────────────────────
   const renderDashboard = () => (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+      {/* CHANGED */}
+      <div className="admin-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
         <StatCard label="Total Drafts" value={drafts.length} sub={`${drafts.filter(d => d.status === 'Draft').length} pending`} accent='#F97316' />
         <StatCard label="Pending Review" value={drafts.filter(d => d.status === 'Draft').length} sub="awaiting action" accent='#F59E0B' />
         <StatCard label="Active Tickets" value={tickets.length} sub={`${tickets.filter(t => t.status === 'New').length} new`} accent='#3B82F6' />
@@ -1208,21 +1243,24 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
         <CardHead title="Recent Draft Tickets" count={Math.min(drafts.length, 8)}
           right={<button onClick={() => navigate('drafts')} style={{ background: '#FFF7ED', border: '1px solid #FDBA74', color: '#EA580C', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>View All →</button>}
         />
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><TH>Title</TH><TH>Category</TH><TH>Assignee</TH><TH>Created</TH><TH>Status</TH></tr></thead>
-          <tbody>
-            {drafts.slice(0, 8).map((t, i) => (
-              <tr key={i} style={{ cursor: 'pointer', background: 'white' }} onClick={() => { navigate('drafts'); setSelectedTask(t); }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                <TD s={{ fontWeight: 600, color: '#1A1A2E' }}>{t.title}</TD>
-                <TD><Pill bg='#E3F2FD' color='#1565C0'>{t.category || 'Uncategorized'}</Pill></TD>
-                <TD s={{ fontSize: 12, color: '#6B7280' }}>{getAssigneeName(t.assigned_to) || <span style={{ color: '#EF4444' }}>Unassigned</span>}</TD>
-                <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{fmtDate(t.created_at)}</TD>
-                <TD><StatusPill s={t.status} /></TD>
-              </tr>
-            ))}
-            {drafts.length === 0 && <EmptyRow cols={5} msg="No draft tickets yet." />}
-          </tbody>
-        </table>
+        {/* CHANGED */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
+            <thead><tr><TH>Title</TH><TH>Category</TH><TH>Assignee</TH><TH>Created</TH><TH>Status</TH></tr></thead>
+            <tbody>
+              {drafts.slice(0, 8).map((t, i) => (
+                <tr key={i} style={{ cursor: 'pointer', background: 'white' }} onClick={() => { navigate('drafts'); setSelectedTask(t); }} onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                  <TD s={{ fontWeight: 600, color: '#1A1A2E' }}>{t.title}</TD>
+                  <TD><Pill bg='#E3F2FD' color='#1565C0'>{t.category || 'Uncategorized'}</Pill></TD>
+                  <TD s={{ fontSize: 12, color: '#6B7280' }}>{getAssigneeName(t.assigned_to) || <span style={{ color: '#EF4444' }}>Unassigned</span>}</TD>
+                  <TD s={{ fontSize: 12, color: '#9CA3AF' }}>{fmtDate(t.created_at)}</TD>
+                  <TD><StatusPill s={t.status} /></TD>
+                </tr>
+              ))}
+              {drafts.length === 0 && <EmptyRow cols={5} msg="No draft tickets yet." />}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
@@ -1246,11 +1284,114 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
 
   const detailLabel = selectedTicket?.title || selectedTask?.title || selectedTask?.full_name;
 
+  // CHANGED
+  useEffect(() => {
+    const style = document.createElement('style');
+   
+    style.innerHTML = `@media (max-width: 400px) {
+      .admin-stat-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      .admin-stat-grid > * {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      .admin-report-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      .admin-report-grid > * {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      /* CHANGED: Draft Edit Responsive */
+      .draft-edit-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        overflow-x: auto !important;
+        min-width: 340px !important;
+      }
+      .draft-edit-grid > div:first-child {
+        border-right: none !important;
+        border-bottom: 1px solid #F3F4F6 !important;
+      }
+      .draft-header {
+        flex-wrap: wrap !important;
+      }
+      .draft-header-buttons {
+        display: flex !important;
+        width: 100% !important;
+        gap: 8px !important;
+      }
+      .draft-header-buttons > * {
+        flex: 1 !important;
+      }
+      /* CHANGED: Stack Save/Approve buttons vertically on mobile */
+      .draft-action-buttons {
+        flex-direction: column !important;
+        width: 100% !important;
+      }
+      .draft-action-buttons > * {
+        width: 100% !important;
+        text-align: center !important;
+      }
+
+      /* CHANGED: AdminTicketDetail mobile fixes */
+      .ticket-detail-header {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+      }
+      .ticket-detail-meta {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      .ticket-detail-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+      .ticket-discussion-messages {
+        max-height: 240px !important;
+      }
+      .ticket-timeline {
+        position: static !important;
+      }
+    }`;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', fontFamily: "'Segoe UI', sans-serif", background: '#F5F5F5', overflow: 'hidden', position: 'fixed', top: 0, left: 0 }}>
-      <Sidebar navItems={ADMIN_NAV} activeView={view} onNavigate={navigate} onLogout={onLogout} profileImage={profileImage} username={username} userEmail={userEmail} role="admin" />
+      <Sidebar navItems={ADMIN_NAV} activeView={view} onNavigate={navigate} onLogout={onLogout} profileImage={profileImage} username={username} userEmail={userEmail} role="admin" collapsed={sidebarCollapsed} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ background: 'white', height: 56, display: 'flex', alignItems: 'center', padding: '0 24px', borderBottom: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+          <button
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            style={{
+              background: 'none',
+              border: 'none',
+              marginRight: 16,
+              fontSize: 22,
+              cursor: 'pointer',
+              color: '#F97316',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 36,
+              height: 36,
+            }}
+          >
+            <span>{sidebarCollapsed ? '☰' : '✕'}</span>
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E' }}>{PAGE_TITLES[view]}</span>
             {detailLabel && (<><span style={{ color: '#D1D5DB', fontSize: 14 }}>›</span><span style={{ fontSize: 13, color: '#6B7280' }}>{detailLabel}</span></>)}

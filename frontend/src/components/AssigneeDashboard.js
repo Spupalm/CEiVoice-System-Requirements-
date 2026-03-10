@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+// CHANGED
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Card, CardHead, TH, TD, EmptyRow, Pill, StatusPill, StatCard, FilterBar } from './Shared';
 
 function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
   const ensureArray = (value) => (Array.isArray(value) ? value : []);
+  // CHANGED
+  const [isNarrow, setIsNarrow] = useState(false);
+  const statGridRef = useRef(null);
 
   const [tasks, setTasks] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -86,6 +90,18 @@ function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
 
     return () => clearInterval(interval);
   }, [selectedTicket, API_URL]);
+
+  // CHANGED
+  useEffect(() => {
+    if (!statGridRef.current) return;
+    const observer = new window.ResizeObserver(entries => {
+      for (const entry of entries) {
+        setIsNarrow(entry.contentRect.width < 400);
+      }
+    });
+    observer.observe(statGridRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const getNameFromId = (id) => {
     if (!id) return 'Unassigned';
@@ -298,15 +314,41 @@ function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
         .text-orange { color: #e67e22 !important; }
         .resolution-tag { color: #198754; font-weight: bold; }
         .modal-backdrop { display: none !important; }
+        .StatCard {
+          font-size: 13px !important;
+          padding: 10px 8px !important;
+        }
+        .CardHead, .Card {
+          padding: 8px 4px !important;
+        }
+        table, th, td {
+          font-size: 12px !important;
+        }
+        .assignee-table-scroll {
+          min-width: 340px !important;
+        }
       `}</style>
 
       {view === 'dashboard' && (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
-        <StatCard label="Currently Assigned" value={counters.currentlyAssigned} sub="assigned to you now" accent="#F97316" />
-        <StatCard label="Solved/Failed (30d)" value={counters.closedLast30Days} sub="closed by status in 30 days" accent="#F59E0B" />
-        <StatCard label="Active Tickets" value={counters.active} sub="in progress" accent="#3B82F6" />
-        <StatCard label="Resolved" value={counters.resolved} sub="tickets solved" accent="#10B981" />
-      </div>
+      <>
+        // CHANGED
+        <div
+          ref={statGridRef}
+          className="assignee-stat-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isNarrow ? '1fr' : 'repeat(4, 1fr)',
+            gap: isNarrow ? 8 : 16,
+            marginBottom: 20,
+            width: '100%',
+          }}
+        >
+          <StatCard label="Currently Assigned" value={counters.currentlyAssigned} sub="assigned to you now" accent="#F97316" />
+          <StatCard label="Solved/Failed (30d)" value={counters.closedLast30Days} sub="closed by status in 30 days" accent="#F59E0B" />
+          <StatCard label="Active Tickets" value={counters.active} sub="in progress" accent="#3B82F6" />
+          <StatCard label="Resolved" value={counters.resolved} sub="tickets solved" accent="#10B981" />
+        </div>
+      </>
       )}
 
       <Card style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
@@ -362,9 +404,9 @@ function AssigneeDashboard({ userId, API_URL, view = 'dashboard' }) {
           />
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div className="assignee-table-scroll" style={{ overflowX: 'auto' }}>
           {view === 'active' ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <TH>Ticket No</TH>
