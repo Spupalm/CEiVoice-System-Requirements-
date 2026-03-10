@@ -221,9 +221,50 @@ export default (db) => {
             // LOG REASSIGNMENT
             if (old_assignee_id && old_assignee_id !== assignee_id) {
                 const reassignHistorySql = `
-                    INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by) 
+                    INSERT INTO ticket_history (ticket_id, action_type, old_value, new_value, performed_by)
                     VALUES (?, 'REASSIGN', ?, ?, ?)`;
                 db.query(reassignHistorySql, [id, old_assignee_id, assignee_id, performed_by]);
+
+                // Notify new assignee about reassignment
+                (async () => {
+                    try {
+                        const [newAssigneeRows] = await db.promise().query(
+                            `SELECT u.full_name, u.email, t.ticket_no, t.title, t.category, t.status
+                             FROM users u
+                             JOIN tickets t ON t.id = ?
+                             WHERE u.id = ?
+                             LIMIT 1`,
+                            [id, assignee_id]
+                        );
+
+                        if (newAssigneeRows.length > 0 && newAssigneeRows[0].email) {
+                            const { full_name, email, ticket_no, title, category, status: currentStatus } = newAssigneeRows[0];
+
+                            const reassignHtml = `
+                                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                    <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                                        <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+                                    </div>
+                                    <div style="padding: 30px; background-color: #ffffff;">
+                                        <p style="font-size: 16px; color: #333;">Hello, <strong>${full_name}</strong></p>
+                                        <p style="font-size: 16px; color: #333;">A support ticket has been reassigned to you.</p>
+                                        <div style="background-color: #e2e3e5; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                                            <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ticket No: <span style="color: #0d6efd;">${ticket_no}</span></h3>
+                                            <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Topic:</strong> ${title}</p>
+                                            <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Category:</strong> ${category}</p>
+                                            <p style="margin-top: 0; color: #555; font-size: 14px;"><strong>Status:</strong> ${currentStatus}</p>
+                                        </div>
+                                        <p style="font-size: 15px; color: #666;">Please log in to the CEiVoice system to begin working on this ticket.</p>
+                                        <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
+                                    </div>
+                                </div>`;
+
+                            sendNotificationEmail(email, `CEiVoice: You have been assigned Ticket [${ticket_no}]`, reassignHtml);
+                        }
+                    } catch (err) {
+                        console.error('❌ Failed to send reassignment email:', err.message);
+                    }
+                })();
             }
 
             // 🟢 เงื่อนไขที่ 2: แจ้งเตือนเมื่อสถานะเปลี่ยนเป็น Solved หรือ Failed

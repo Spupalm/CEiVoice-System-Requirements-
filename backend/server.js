@@ -776,6 +776,38 @@ app.post('/api/admin/approve-ticket', async (req, res) => {
         );
         await Promise.all([updateDraft, updateRequest, updateAssigneeWorkStatus]);
 
+        // Notify assignee about new ticket assignment
+        const [assigneeRows] = await db.promise().query(
+            "SELECT full_name, email FROM users WHERE id = ? LIMIT 1",
+            [assignee_id]
+        );
+
+        if (assigneeRows.length > 0 && assigneeRows[0].email) {
+            const assigneeFullName = assigneeRows[0].full_name;
+            const assigneeEmail = assigneeRows[0].email;
+
+            const assigneeHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                        <h2 style="margin: 0; font-size: 24px;">CEiVoice Support</h2>
+                    </div>
+                    <div style="padding: 30px; background-color: #ffffff;">
+                        <p style="font-size: 16px; color: #333;">Hello, <strong>${assigneeFullName}</strong></p>
+                        <p style="font-size: 16px; color: #333;">A support ticket has been assigned to you.</p>
+                        <div style="background-color: #e2e3e5; border-left: 5px solid #6c757d; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                            <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ticket No: <span style="color: #0d6efd;">${ticketNo}</span></h3>
+                            <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Topic:</strong> ${title}</p>
+                            <p style="margin-bottom: 5px; color: #555; font-size: 14px;"><strong>Category:</strong> ${category}</p>
+                            <p style="margin-top: 0; color: #555; font-size: 14px;"><strong>Status:</strong> New</p>
+                        </div>
+                        <p style="font-size: 15px; color: #666;">Please log in to the CEiVoice system to begin working on this ticket.</p>
+                        <p style="font-size: 15px; color: #666; margin-top: 30px;">Thank you,<br/><strong style="color: #0d6efd;">The CEiVoice Team</strong></p>
+                    </div>
+                </div>`;
+
+            sendNotificationEmail(assigneeEmail, `CEiVoice: You have been assigned Ticket [${ticketNo}]`, assigneeHtml);
+        }
+
         // 🟢 5. ส่งอีเมลแจ้งเตือนเมื่อตั๋วถูกสร้างทางการ (พร้อม Tracking Link)
         if (allRelatedUsers.length > 0) {
             for (const user of allRelatedUsers) {

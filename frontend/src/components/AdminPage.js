@@ -641,12 +641,13 @@ const ADMIN_NAV = [
   { icon: '/users.png', label: 'User Mgmt', view: 'users' },
   { icon: '/reports.png', label: 'Reports', view: 'reports' },
   { icon: '/history.png', label: 'History', view: 'history' },
+  { icon: '/users.png', label: 'Approvals', view: 'approvals' },
 ];
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard', drafts: 'Draft Tickets', official: 'Active Tickets',
   'user-requests': 'User Requests', users: 'User Management',
-  reports: 'Reports', history: 'Ticket History',
+  reports: 'Reports', history: 'Ticket History',approvals: 'Pending Approvals',
 };
 
 // ─── AdminPage ────────────────────────────────────────────────────────────────
@@ -1278,6 +1279,7 @@ function AdminPage({ username, userEmail, onLogout, profileImage, createNewAdmin
       case 'users': return renderUsers();
       case 'reports': return <ReportsView />;
       case 'history': return renderHistory();
+      case 'approvals': return <ApprovalsView />;  
       default: return null;
     }
   };
